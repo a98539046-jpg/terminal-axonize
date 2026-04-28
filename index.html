@@ -221,6 +221,35 @@ canvas{position:absolute;top:0;left:0;}
 ::-webkit-scrollbar{width:3px;height:3px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:2px;}
+
+/* ═══ AXONIZE CHANNEL ═══ */
+.axz-btn{padding:4px 12px;background:linear-gradient(135deg,#0d1e38,#091728);border:1px solid #3b82f6;border-radius:6px;color:#3b82f6;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.5px;transition:all .2s;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.axz-btn:hover{border-color:#60a5fa;color:#60a5fa;box-shadow:0 0 14px rgba(59,130,246,.35);}
+.axz-btn.open{border-color:#00c896;color:#00c896;box-shadow:0 0 14px rgba(0,200,150,.3);}
+.axz-dot{width:6px;height:6px;border-radius:50%;background:#00c896;flex-shrink:0;animation:axz-pulse 2s infinite;}
+@keyframes axz-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,200,150,.5)}50%{opacity:.7;box-shadow:0 0 0 5px rgba(0,200,150,0)}}
+.axz-drawer{position:fixed;bottom:0;left:0;right:0;height:300px;background:var(--bg1);border-top:2px solid #1e3a5a;z-index:400;transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.5);}
+.axz-drawer.open{transform:translateY(0);}
+.axz-drawer-head{display:flex;align-items:center;padding:0 14px;height:36px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,rgba(9,23,40,.9),var(--bg2) 60%);flex-shrink:0;gap:10px;}
+.axz-drawer-title{font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:.8px;}
+.axz-drawer-status{font-size:9px;color:var(--text3);display:flex;align-items:center;gap:5px;}
+.axz-drawer-close{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 2px;line-height:1;}
+.axz-drawer-close:hover{color:var(--text);}
+.axz-drawer-body{display:grid;grid-template-columns:210px 1fr 250px;flex:1;overflow:hidden;}
+.axz-col{border-right:1px solid var(--border);overflow-y:auto;padding:10px 12px;}
+.axz-col:last-child{border-right:none;}
+.axz-col-title{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.axz-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.axz-stat{background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:6px 8px;}
+.axz-stat-l{font-size:8px;color:var(--text3);margin-bottom:2px;}
+.axz-stat-v{font-size:13px;font-weight:700;color:var(--text);}
+.axz-trade-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(30,42,58,.6);font-size:9px;}
+.axz-trade-row:last-child{border-bottom:none;}
+.axz-badge{padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700;flex-shrink:0;}
+.axz-badge.l{background:rgba(0,200,150,.15);color:var(--green);}
+.axz-badge.s{background:rgba(255,68,102,.15);color:var(--red);}
+.axz-connecting{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:10px;gap:6px;text-align:center;}
+.axz-delay-note{font-size:8px;color:var(--text3);text-align:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -257,6 +286,9 @@ canvas{position:absolute;top:0;left:0;}
   </div>
   <span class="lev-badge" id="levBadge">20×</span>
   <button class="dep-btn" onclick="openDep()">＋ Депозит</button>
+  <button class="axz-btn" id="axzBtn" onclick="toggleAxzDrawer()">
+    <span class="axz-dot"></span>AXONIZE
+  </button>
   <button class="axz-btn" id="axzBtn" onclick="toggleAxzDrawer()">
     <span class="axz-dot"></span>AXONIZE
   </button>
@@ -562,6 +594,54 @@ canvas{position:absolute;top:0;left:0;}
     </div>
   </div>
 </div>
+
+<!-- AXONIZE CHANNEL DRAWER -->
+<div class="axz-drawer" id="axzDrawer">
+  <div class="axz-drawer-head">
+    <span class="axz-drawer-title">◈ AXONIZE CHANNEL</span>
+    <div class="axz-drawer-status">
+      <span style="width:5px;height:5px;border-radius:50%;background:#00c896;display:inline-block;animation:axz-pulse 2s infinite;flex-shrink:0;"></span>
+      <span id="axzStatus">Ожидание broadcast...</span>
+      <span style="color:var(--border2)">·</span>
+      <span>Задержка 5–10 мин</span>
+    </div>
+    <button class="axz-drawer-close" onclick="toggleAxzDrawer()">×</button>
+  </div>
+  <div class="axz-drawer-body">
+    <div class="axz-col">
+      <div class="axz-col-title">Статистика AXONIZE</div>
+      <div class="axz-stat-grid">
+        <div class="axz-stat"><div class="axz-stat-l">Баланс</div><div class="axz-stat-v" id="axzBalance" style="color:var(--green)">—</div></div>
+        <div class="axz-stat"><div class="axz-stat-l">P&amp;L сегодня</div><div class="axz-stat-v" id="axzPnlDay">—</div></div>
+        <div class="axz-stat"><div class="axz-stat-l">Win Rate</div><div class="axz-stat-v" id="axzWinRate" style="color:var(--cyan)">—</div></div>
+        <div class="axz-stat"><div class="axz-stat-l">Сделок</div><div class="axz-stat-v" id="axzTradesCount">—</div></div>
+        <div class="axz-stat"><div class="axz-stat-l">Sharpe</div><div class="axz-stat-v" id="axzSharpe" style="color:var(--yellow)">—</div></div>
+        <div class="axz-stat"><div class="axz-stat-l">Max DD</div><div class="axz-stat-v" id="axzDD" style="color:var(--red)">—</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
+        <div class="axz-stat"><div class="axz-stat-l">P&amp;L за неделю</div><div class="axz-stat-v" id="axzPnlWeek">—</div></div>
+        <div class="axz-stat"><div class="axz-stat-l">P&amp;L за всё время</div><div class="axz-stat-v" id="axzPnlTotal">—</div></div>
+      </div>
+    </div>
+    <div class="axz-col" style="display:flex;flex-direction:column;gap:6px;">
+      <div class="axz-col-title">Кривая эквити</div>
+      <div style="flex:1;position:relative;"><canvas id="axzEquityC" style="position:absolute;inset:0;"></canvas></div>
+      <div class="axz-delay-note">Данные с задержкой 5–10 мин · защита торговой логики Brain</div>
+    </div>
+    <div class="axz-col">
+      <div class="axz-col-title">История закрытых сделок</div>
+      <div id="axzTradesList">
+        <div class="axz-connecting">
+          <span style="font-size:22px;opacity:.4">◈</span>
+          <span>Broadcast не подключён</span>
+          <span style="color:var(--accent);font-size:9px">bingx-proxy.duckdns.org</span>
+          <span style="font-size:8px;color:var(--text3)">Сделки появятся после запуска<br>Торгового сервера</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 const ST={spot:{candles:{},tf:'1h',price:0,h24:0,l24:0,vol24:0,asks:[],bids:[]},fut:{candles:{},tf:'1h',price:0,h24:0,l24:0,vol24:0,asks:[],bids:[],oi:'487.2M',fr:'0.0100%'}};
@@ -1144,3 +1224,396 @@ function drawOrderBookWalls(){
 }
 
 
+
+
+function drawUserObjects(){
+  if(!CM||!CM.rng) return;
+  ctx.save();
+  userDrawings.forEach((d,di)=>{
+    const col=d.color||'#e2eaf8';
+    ctx.strokeStyle=col; ctx.fillStyle=col;
+    if(d.type==='trend'||d.type==='arrow'){
+      if(d.pts.length<2) return;
+      const x1=chartToScreenX(d.pts[0]),y1=chartToScreenY(d.pts[0]),x2=chartToScreenX(d.pts[1]),y2=chartToScreenY(d.pts[1]);
+      ctx.lineWidth=1.5; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      if(d.type==='arrow'){
+        const angle=Math.atan2(y2-y1,x2-x1), al=10, aw=5;
+        ctx.beginPath(); ctx.moveTo(x2,y2);
+        ctx.lineTo(x2-al*Math.cos(angle-aw*0.15),y2-al*Math.sin(angle-aw*0.15));
+        ctx.lineTo(x2-al*Math.cos(angle+aw*0.15),y2-al*Math.sin(angle+aw*0.15));
+        ctx.closePath(); ctx.fill();
+      }
+      drawDelBtn(x1-8,y1-8,di);
+    }
+    else if(d.type==='fib'){
+      if(d.pts.length<2) return;
+      const x1=chartToScreenX(d.pts[0]),y1=chartToScreenY(d.pts[0]),x2=chartToScreenX(d.pts[1]),y2=chartToScreenY(d.pts[1]);
+      const pHigh=Math.max(d.pts[0].price,d.pts[1].price),pLow=Math.min(d.pts[0].price,d.pts[1].price),diff=pHigh-pLow;
+      const levels=[0,0.236,0.382,0.5,0.618,0.786,1];
+      const colors=['#ff4466','#f5a623','#00c896','#3b82f6','#00c896','#f5a623','#ff4466'];
+      levels.forEach((lvl,li)=>{
+        const price=pHigh-diff*lvl, y=CM.toY(price);
+        if(y<CM.pad.t||y>CM.pad.t+CM.cH) return;
+        ctx.strokeStyle=colors[li]; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(CM.pad.l,y); ctx.lineTo(CM.W-CM.pad.r,y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font='bold 8px JetBrains Mono,monospace'; ctx.fillStyle=colors[li]; ctx.textAlign='left';
+        ctx.fillText((lvl*100).toFixed(1)+'%  '+fmtP(price),CM.pad.l+3,y-3);
+      });
+      ctx.strokeStyle='rgba(200,212,232,0.15)'; ctx.lineWidth=1; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x1,CM.pad.t); ctx.lineTo(x1,CM.pad.t+CM.cH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2,CM.pad.t); ctx.lineTo(x2,CM.pad.t+CM.cH); ctx.stroke();
+      drawDelBtn(x1-8,CM.pad.t+4,di);
+    }
+    else if(d.type==='ruler'){
+      if(d.pts.length<2) return;
+      const x1=chartToScreenX(d.pts[0]),y1=chartToScreenY(d.pts[0]),x2=chartToScreenX(d.pts[1]),y2=chartToScreenY(d.pts[1]);
+      ctx.strokeStyle='#f5a623'; ctx.lineWidth=1.5; ctx.setLineDash([6,3]);
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineWidth=1;
+      [0,1].forEach(i=>{ const x=i?x2:x1,y=i?y2:y1; ctx.beginPath(); ctx.moveTo(x,y-6); ctx.lineTo(x,y+6); ctx.stroke(); });
+      const pDiff=d.pts[1].price-d.pts[0].price,pPct=(pDiff/d.pts[0].price*100),bars=Math.abs(d.pts[1].barIdx-d.pts[0].barIdx);
+      const mx2=(x1+x2)/2,my2=(y1+y2)/2,sign=pDiff>=0?'+':'';
+      ctx.font='bold 9px JetBrains Mono,monospace'; ctx.fillStyle='#f5a623'; ctx.textAlign='center';
+      ctx.fillText(`${sign}${fmtP(pDiff)} (${sign}${pPct.toFixed(2)}%)`,mx2,my2-10);
+      ctx.font='8px JetBrains Mono,monospace'; ctx.fillStyle='rgba(245,166,35,0.7)';
+      ctx.fillText(`${bars} баров`,mx2,my2+8);
+      drawDelBtn(x1-8,y1-8,di);
+    }
+    else if(d.type==='path'){
+      if(d.pts.length<2) return;
+      ctx.strokeStyle='#06b6d4'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+      ctx.beginPath();
+      d.pts.forEach((pt,i)=>{ const x=chartToScreenX(pt),y=chartToScreenY(pt); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); ctx.fillStyle='#06b6d4'; ctx.fillRect(x-2,y-2,4,4); });
+      ctx.stroke();
+      drawDelBtn(chartToScreenX(d.pts[0])-8,chartToScreenY(d.pts[0])-8,di);
+    }
+    else if(d.type==='brush'){
+      if(!d.pts||d.pts.length<2) return;
+      ctx.strokeStyle=d.color||'rgba(200,100,255,0.7)'; ctx.lineWidth=d.width||2;
+      ctx.lineCap='round'; ctx.lineJoin='round'; ctx.setLineDash([]);
+      ctx.beginPath();
+      d.pts.forEach((pt,i)=>{ const x=chartToScreenX(pt),y=chartToScreenY(pt); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+      ctx.stroke();
+    }
+  });
+  if(brushPts.length>=2&&activeTool==='brush'){
+    ctx.strokeStyle='rgba(200,100,255,0.7)'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.beginPath();
+    brushPts.forEach((pt,i)=>{ i===0?ctx.moveTo(pt.x,pt.y):ctx.lineTo(pt.x,pt.y); });
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDelBtn(x,y,idx){
+  ctx.save();
+  ctx.fillStyle='rgba(22,26,34,0.92)'; ctx.strokeStyle='#4a5a7a'; ctx.lineWidth=0.5;
+  ctx.fillRect(x,y,14,12); ctx.strokeRect(x,y,14,12);
+  ctx.fillStyle='#c8d4e8'; ctx.font='bold 9px monospace'; ctx.textAlign='center';
+  ctx.fillText('×',x+7,y+9);
+  if(userDrawings[idx]) userDrawings[idx]._delBtn={x,y,w:14,h:12};
+  ctx.restore();
+}
+
+function drawPreview(mx,my){
+  const oc=document.getElementById('overlayC'),octx=oc.getContext('2d');
+  octx.clearRect(0,0,oc.width,oc.height);
+  if(!drawStart||!CM||!CM.rng) return;
+  const x1=chartToScreenX(drawStart),y1=chartToScreenY(drawStart);
+  const pt2=screenToChart(mx,my); if(!pt2) return;
+  const x2=mx,y2=my,price2=pt2.price;
+  octx.save(); octx.setLineDash([4,4]);
+  if(activeTool==='trend'||activeTool==='arrow'){
+    octx.strokeStyle='rgba(226,234,248,0.7)'; octx.lineWidth=1.5;
+    octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
+  } else if(activeTool==='fib'){
+    octx.strokeStyle='rgba(59,130,246,0.5)'; octx.lineWidth=1;
+    octx.beginPath(); octx.moveTo(x1,CM.pad.t); octx.lineTo(x1,CM.pad.t+CM.cH); octx.stroke();
+    octx.beginPath(); octx.moveTo(x2,CM.pad.t); octx.lineTo(x2,CM.pad.t+CM.cH); octx.stroke();
+    const pHigh=Math.max(drawStart.price,price2),pLow=Math.min(drawStart.price,price2),diff=pHigh-pLow;
+    [0,0.382,0.5,0.618,1].forEach(lvl=>{ const y=CM.toY(pHigh-diff*lvl); if(y<CM.pad.t||y>CM.pad.t+CM.cH) return; octx.strokeStyle='rgba(59,130,246,0.4)'; octx.lineWidth=0.8; octx.beginPath(); octx.moveTo(CM.pad.l,y); octx.lineTo(CM.W-CM.pad.r,y); octx.stroke(); });
+  } else if(activeTool==='ruler'){
+    octx.strokeStyle='rgba(245,166,35,0.7)'; octx.lineWidth=1.5;
+    octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(x2,y2); octx.stroke();
+    const pDiff=price2-drawStart.price,pPct=(pDiff/drawStart.price*100),sign=pDiff>=0?'+':'';
+    octx.setLineDash([]); octx.font='bold 9px JetBrains Mono,monospace'; octx.fillStyle='#f5a623'; octx.textAlign='center';
+    octx.fillText(`${sign}${fmtP(pDiff)} (${sign}${pPct.toFixed(2)}%)`,(x1+x2)/2,(y1+y2)/2-8);
+  } else if(activeTool==='path'){
+    if(drawStart._pathPts&&drawStart._pathPts.length>0){
+      const last=drawStart._pathPts[drawStart._pathPts.length-1];
+      octx.strokeStyle='rgba(6,182,212,0.6)'; octx.lineWidth=1.5;
+      octx.beginPath(); octx.moveTo(chartToScreenX(last),chartToScreenY(last)); octx.lineTo(x2,y2); octx.stroke();
+    }
+  }
+  octx.restore();
+}
+
+function checkPendingOrders(price){
+  let changed=false;
+  positionDrawings.forEach(pos=>{
+    if(!pos.pending) return;
+    const isLong=pos.side==='long';
+    const triggered=isLong?price<=pos.entry:price>=pos.entry;
+    if(triggered){pos.pending=false;pos.entry=price;changed=true;
+      const col=isLong?'#00c896':'#ff4466';
+      const t=document.createElement('div');
+      t.style.cssText=`position:fixed;top:50px;right:280px;background:#1c2330;border:1px solid ${col};color:${col};padding:8px 16px;border-radius:6px;font-size:11px;z-index:9999;font-family:JetBrains Mono,monospace;`;
+      t.textContent=(isLong?'▲ Лонг сработал @ ':'▼ Шорт сработал @ ')+fmtP(price);
+      document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+    }
+  });
+  if(changed){const at=document.querySelector('.bp-tab.active');if(at)setBP(at,'pos');schedDraw();}
+}
+
+function drawPositions(){
+  if(!positionDrawings.length||!CM.rng) return;
+  const{pad,W,toY,cH}=CM;
+  positionDrawings.forEach(pos=>{
+    const isLong=pos.side==='long';
+    const yEntry=toY(pos.entry),yTP=toY(pos.tp),ySL=toY(pos.sl);
+    const clamp=y=>Math.min(Math.max(y,pad.t),pad.t+cH);
+    const GREEN='rgba(0,200,150,',RED='rgba(255,68,102,',entryCol=isLong?'#00c896':'#ff4466';
+    ctx.save();
+    const line=(y,col,lw,dash=[])=>{ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(pad.l,clamp(y));ctx.lineTo(W-pad.r,clamp(y));ctx.stroke();ctx.setLineDash([]);};
+    if(pos.pending){
+      line(yEntry,entryCol,1.5,[4,4]);
+      const y=clamp(yEntry);
+      const pt=(isLong?'▲ ЛИМИТ (ожидание)  ':'▼ ЛИМИТ (ожидание)  ')+fmtP(pos.entry);
+      ctx.font='bold 8px JetBrains Mono,monospace';
+      const tw=ctx.measureText(pt).width,bw=tw+10,bh=14,bx=W-pad.r-bw-3;
+      ctx.fillStyle=isLong?'rgba(0,200,150,0.75)':'rgba(255,68,102,0.75)';
+      ctx.fillRect(bx,y-bh/2,bw,bh);ctx.fillStyle='#000';ctx.textAlign='left';ctx.fillText(pt,bx+5,y+4);
+      const delX=pad.l+4,delY=y-7;
+      ctx.fillStyle='rgba(22,26,34,.95)';ctx.fillRect(delX,delY,16,13);
+      ctx.strokeStyle='#4a5a7a';ctx.lineWidth=.5;ctx.strokeRect(delX,delY,16,13);
+      ctx.fillStyle='#c8d4e8';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('×',delX+8,delY+10);
+      pos._delBtn={x:delX,y:delY,w:16,h:13};
+    }else{
+      line(yTP,'#00c896',1.5,[6,3]);line(yEntry,entryCol,1.5);line(ySL,'#ff4466',1.5,[6,3]);
+      const pct=+(document.getElementById('posSizePct')?.value||10)/100,avail=12450,margin=avail*pct,qty=margin*lev/(pos.entry||1),dir=isLong?1:-1;
+      const pTP=((pos.tp-pos.entry)*qty*dir),pSL=((pos.sl-pos.entry)*qty*dir),rr=Math.abs((pos.tp-pos.entry)/(pos.sl-pos.entry||1));
+      const badge=(rawY,label,price,bg,pnl)=>{
+        const y=clamp(rawY);
+        const pnlStr=pnl!==undefined?'  '+(pnl>=0?'+':'')+fmtN(pnl)+'U':'';
+        const rrStr=label==='ENT'?'  R:R '+rr.toFixed(1):'';
+        const txt=label+' '+fmtP(price)+pnlStr+rrStr;
+        ctx.font='bold 8px JetBrains Mono,monospace';
+        const tw=ctx.measureText(txt).width,bw=tw+8,bh=14,bx=W-pad.r-bw-3;
+        ctx.fillStyle=bg;ctx.fillRect(bx,y-bh/2,bw,bh);
+        const tagW=ctx.measureText(label).width+6;ctx.fillRect(W-pad.r+1,y-6,tagW,12);
+        ctx.fillStyle='#fff';ctx.textAlign='left';ctx.fillText(txt,bx+4,y+4);
+        ctx.fillStyle='#000';ctx.fillText(label,W-pad.r+4,y+4);
+      };
+      badge(yTP,'TP',pos.tp,GREEN+'0.9)',pTP);badge(yEntry,'ENT',pos.entry,entryCol+'bb',undefined);badge(ySL,'SL',pos.sl,RED+'0.9)',pSL);
+      const delX=pad.l+4,delY=clamp(yEntry)-7;
+      ctx.fillStyle='rgba(22,26,34,.95)';ctx.fillRect(delX,delY,16,13);
+      ctx.strokeStyle='#4a5a7a';ctx.lineWidth=.5;ctx.strokeRect(delX,delY,16,13);
+      ctx.fillStyle='#c8d4e8';ctx.font='bold 10px monospace';ctx.textAlign='center';
+      ctx.fillText('×',delX+8,delY+10);
+      pos._delBtn={x:delX,y:delY,w:16,h:13};
+    }
+    ctx.restore();
+  });
+}
+
+const POS=[];
+function setBP(el,tab){
+  document.querySelectorAll('.bp-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');
+  const c=document.getElementById('bpC');
+  if(tab==='pos'){
+    const totalPos=positionDrawings.length+POS.length;
+    const tabEl=document.getElementById('bpTabPos');if(tabEl)tabEl.textContent=`Позиции (${totalPos})`;
+    if(totalPos===0){c.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Нет открытых позиций</div>';return;}
+    const drawn=positionDrawings.map(pos=>{
+      const isLong=pos.side==='long',pct=+(document.getElementById('posSizePct')?.value||10)/100;
+      const margin=12450*pct,qty=(margin*lev/(pos.entry||1));
+      const pnl=pos.pending?null:(curP-pos.entry)*qty*(isLong?1:-1);
+      const pp=pos.pending?null:pnl/(margin)*100;
+      return{sym:curSymDisplay.replace('/',''),dir:pos.side,sz:qty,un:curSym.replace('-USDT',''),lev,en:pos.entry,liq:isLong?pos.entry*(1-0.008/lev):pos.entry*(1+0.008/lev),tp:fmtP(pos.tp),sl:fmtP(pos.sl),mg:margin,pnl,pp,fromChart:true,pending:pos.pending};
+    });
+    const allPos=[...drawn,...POS];
+    c.innerHTML='<table class="bpt"><thead><tr><th>Пара</th><th>Напр.</th><th>Размер</th><th>Вход</th><th>Рынок</th><th>Нереализ П/У</th><th>Ликвид.</th><th>Маржа</th><th>ТП/СЛ</th><th>Действия</th></tr></thead><tbody>'+
+    allPos.map(p=>{
+      const g=p.pnl>=0,f=p.en<1?6:2;
+      const badge=p.fromChart?` <span style="font-size:8px;color:var(--accent);opacity:.7">📊</span>`:'';
+      return`<tr${p.fromChart?` style="background:rgba(59,130,246,.05)"`:''}>
+        <td>${p.sym}${badge}</td><td><span class="${p.dir==='long'?'bl':'bs'}">${p.dir==='long'?'Лонг':'Шорт'}</span> ${p.lev}×</td>
+        <td>${typeof p.sz==='number'?p.sz.toFixed(p.sz<1?3:2):p.sz} ${p.un}</td>
+        <td>${typeof p.en==='number'?p.en.toFixed(f):p.en}</td><td>${fmtP(curP||71000)}</td>
+        <td class="${g?'pg':'pr'}">${g?'+':''}${p.pnl.toFixed(2)}<br><span style="font-size:9px">(${p.pp.toFixed(1)}%)</span></td>
+        <td>${typeof p.liq==='number'?fmtP(p.liq):'—'}</td><td>${typeof p.mg==='number'?p.mg.toFixed(2):p.mg}</td>
+        <td style="color:var(--accent)">${p.tp}/${p.sl}</td>
+        <td>${p.fromChart?`<button class="ab ab-c" onclick="event.stopPropagation();positionDrawings=[];setBP(document.querySelector('.bp-tab.active'),'pos');drawChart()">Закр.</button>`:`<button class="ab ab-a">Доб.</button><button class="ab ab-c">Закр.</button>`}</td></tr>`;
+    }).join('')+'</tbody></table>';
+  }else if(tab==='ord'){c.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Нет открытых ордеров</div>';}
+  else if(tab==='trd'){c.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">История сделок недоступна без API-ключа</div>';}
+  else{c.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">История ордеров недоступна без API-ключа</div>';}
+}
+
+function closeAllPositions(){
+  if(!positionDrawings.length){const t=document.createElement('div');t.style.cssText='position:fixed;top:50px;right:280px;background:#1c2330;border:1px solid var(--text3);color:var(--text3);padding:8px 16px;border-radius:6px;font-size:11px;z-index:9999;font-family:JetBrains Mono,monospace;';t.textContent='Нет открытых позиций';document.body.appendChild(t);setTimeout(()=>t.remove(),2000);return;}
+  positionDrawings=[];drawChart();
+  const at=document.querySelector('.bp-tab.active');if(at)setBP(at,'pos');
+  const t=document.createElement('div');t.style.cssText='position:fixed;top:50px;right:280px;background:#1c2330;border:1px solid var(--red);color:var(--red);padding:8px 16px;border-radius:6px;font-size:11px;z-index:9999;font-family:JetBrains Mono,monospace;';t.textContent='✓ Все позиции закрыты';document.body.appendChild(t);setTimeout(()=>t.remove(),2000);
+}
+
+function openProxyModal(){const saved=localStorage.getItem('ws_proxy_url')||'';document.getElementById('proxyUrlInput').value=saved;document.getElementById('proxyStatus').textContent=saved?'✓ Прокси: '+saved:'Прямое подключение (без прокси)';document.getElementById('proxyModal').style.display='flex';}
+function closeProxyModal(){document.getElementById('proxyModal').style.display='none';}
+document.getElementById('proxyModal').addEventListener('click',function(e){if(e.target===this)closeProxyModal();});
+
+function saveProxy(){let url=document.getElementById('proxyUrlInput').value.trim();if(!url){clearProxy();return;}url=url.replace(/^https:\/\//,'wss://').replace(/^http:\/\//,'ws://').replace(/\/+$/,'');localStorage.setItem('ws_proxy_url',url);window.WS_PROXY_URL=url;document.getElementById('proxyStatus').textContent='✓ Сохранено. Переподключение...';const btn=document.getElementById('proxyBtn');if(btn){btn.style.borderColor='var(--green)';btn.style.color='var(--green)';}setTimeout(()=>{closeProxyModal();connectWS();},800);}
+function clearProxy(){localStorage.removeItem('ws_proxy_url');window.WS_PROXY_URL=null;document.getElementById('proxyStatus').textContent='Сброшено. Прямое подключение...';const btn=document.getElementById('proxyBtn');if(btn){btn.style.borderColor='var(--text3)';btn.style.color='var(--text3)';}setTimeout(()=>{closeProxyModal();connectWS();},800);}
+(function(){const saved=localStorage.getItem('ws_proxy_url');if(saved){window.WS_PROXY_URL=saved;const btn=document.getElementById('proxyBtn');if(btn){btn.style.borderColor='var(--green)';btn.style.color='var(--green)';}console.log('[Proxy] Восстановлен:',saved);}})();
+
+function openDep(){document.getElementById('depModal').style.display='flex';}
+function closeDep(){document.getElementById('depModal').style.display='none';}
+document.getElementById('depModal').addEventListener('click',function(e){if(e.target===this)closeDep();});
+function setDM(m){document.getElementById('dSpot').className='dep-card'+(m==='spot'?' as':'');document.getElementById('dFut').className='dep-card'+(m==='fut'?' af':'');document.getElementById('dSpot').querySelector('.dct').style.color=m==='spot'?'var(--cyan)':'var(--text2)';document.getElementById('dFut').querySelector('.dct').style.color=m==='fut'?'var(--yellow)':'var(--text2)';}
+function cpAddr(){const t=document.createElement('div');t.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1c2330;border:1px solid var(--green);color:var(--green);padding:8px 20px;border-radius:6px;font-size:11px;z-index:9999;font-family:JetBrains Mono,monospace;';t.textContent='✓ Адрес скопирован';document.body.appendChild(t);setTimeout(()=>t.remove(),1500);}
+
+setInterval(()=>{
+  document.getElementById('cTime').textContent=new Date().toTimeString().slice(0,8)+' UTC+3';
+  const frEl=document.getElementById('fundRate'),txt=frEl.textContent;
+  if(txt&&txt.includes('/')){const rate=txt.split('/')[0].trim();const now=new Date(),sec=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();const rem=28800-(sec%28800),h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),s=rem%60;frEl.textContent=`${rate} / ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
+  if(!wsOk&&!ST[mkt].asks.length&&!ST[mkt].bids.length&&curP){const p=curP;ST[mkt].asks=fakeOB(p,'ask');ST[mkt].bids=fakeOB(p,'bid');updOB();}
+},1000);
+
+window.addEventListener('resize',drawChart);
+
+function setVH(){document.documentElement.style.setProperty('--vh',window.innerHeight*0.01+'px');}
+setVH();
+window.addEventListener('resize',()=>{setVH();drawChart();});
+window.addEventListener('orientationchange',()=>{setTimeout(()=>{setVH();drawChart();},200);});
+
+function toggleFS(){const btn=document.getElementById('fsBtn');if(!document.fullscreenElement){document.documentElement.requestFullscreen().then(()=>{btn.textContent='✕';btn.title='Выйти из полного экрана';}).catch(()=>{});}else{document.exitFullscreen().then(()=>{btn.textContent='⛶';btn.title='Полный экран';}).catch(()=>{});}}
+document.addEventListener('fullscreenchange',()=>{const btn=document.getElementById('fsBtn');if(!document.fullscreenElement){btn.textContent='⛶';btn.title='Полный экран';}setTimeout(()=>{setVH();drawChart();},100);});
+
+let isLightTheme=localStorage.getItem('nt_theme')==='light';
+function applyTheme(){document.body.classList.toggle('light-theme',isLightTheme);const btn=document.getElementById('themeBtn');if(btn)btn.textContent=isLightTheme?'🌙':'☀';schedDraw();}
+function toggleTheme(){isLightTheme=!isLightTheme;localStorage.setItem('nt_theme',isLightTheme?'light':'dark');applyTheme();}
+applyTheme();
+
+function toggleSymPicker(el){const searchWrap=document.getElementById('symSearchWrap'),btn=document.getElementById('symPickerBtn'),picker=document.getElementById('symPicker');searchWrap.style.display='flex';btn.style.display='none';const inp=document.getElementById('symSearchInput');inp.value='';inp.focus();filterSyms('');picker.style.display='block';}
+function closeSymSearch(){document.getElementById('symSearchWrap').style.display='none';document.getElementById('symPickerBtn').style.display='flex';document.getElementById('symPicker').style.display='none';}
+function filterSyms(q){const picker=document.getElementById('symPicker');const filtered=q?SYMBOLS.filter(s=>s.label.toLowerCase().includes(q.toLowerCase())||s.sym.toLowerCase().includes(q.toLowerCase())):SYMBOLS;picker.innerHTML=filtered.map(s=>`<div onclick="setSym('${s.sym}','${s.label}');closeSymSearch()" style="padding:6px 10px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:4px;font-size:10px;background:${s.sym===curSym?'var(--bg4)':'transparent'}" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='${s.sym===curSym?'var(--bg4)':'transparent'}'"><span style="width:16px;text-align:center">${s.icon}</span><span style="font-weight:600;color:${s.sym===curSym?'var(--accent)':'var(--text)'}">${s.label}</span>${s.sym===curSym?'<span style="margin-left:auto;color:var(--accent);font-size:9px">✓</span>':''}</div>`).join('');if(!filtered.length)picker.innerHTML='<div style="padding:8px;text-align:center;color:var(--text3);font-size:9px">Не найдено</div>';}
+function symSearchKey(e){if(e.key==='Escape')closeSymSearch();if(e.key==='Enter'){const q=e.target.value.trim();const found=SYMBOLS.find(s=>s.label.toLowerCase().includes(q.toLowerCase())||s.sym.toLowerCase().includes(q.toLowerCase()));if(found){setSym(found.sym,found.label);closeSymSearch();}}}
+document.addEventListener('click',e=>{const wrap=document.getElementById('symSearchWrap'),btn=document.getElementById('symPickerBtn'),picker=document.getElementById('symPicker');if(wrap&&wrap.style.display!=='none'){if(!wrap.contains(e.target)&&!picker.contains(e.target)&&!btn.contains(e.target))closeSymSearch();}});
+
+
+
+function hitTestLine(my,price){if(!CM||!CM.toY||!CM.pad)return false;const y=CM.toY(price);if(y>=CM.pad.t&&y<=CM.pad.t+CM.cH)return Math.abs(my-y)<10;if(y<CM.pad.t)return Math.abs(my-(CM.pad.t+14))<10;if(y>CM.pad.t+CM.cH)return Math.abs(my-(CM.pad.t+CM.cH-14))<10;return false;}
+
+mainC.addEventListener('mousemove',e=>{if(!positionDrawings.length||!CM.rng)return;const r=mainC.getBoundingClientRect(),my=e.clientY-r.top;if(dragTarget){const price=CM.mx-CM.rng*(my-CM.pad.t)/CM.cH;const pos=positionDrawings[dragPosIdx];if(pos&&price>0){if(dragTarget==='tp')pos.tp=price;if(dragTarget==='sl')pos.sl=price;schedDraw();const at=document.querySelector('.bp-tab.active');if(at)setBP(at,'pos');}return;}let onLine=false;positionDrawings.forEach(pos=>{if(hitTestLine(my,pos.tp)||hitTestLine(my,pos.sl))onLine=true;});mainC.style.cursor=onLine?'ns-resize':(activeTool==='cursor'?'grab':'crosshair');});
+mainC.addEventListener('mouseup',e=>{if(dragTarget){dragTarget=null;mainC.style.cursor=activeTool==='cursor'?'grab':'crosshair';schedDraw();}});
+mainC.addEventListener('mouseleave',e=>{if(dragTarget){dragTarget=null;mainC.style.cursor='crosshair';}});
+window.addEventListener('mouseup',()=>{if(isPanning){isPanning=false;mainC.style.cursor='grab';}});
+
+function focusPosition(posId){const pos=positionDrawings.find(p=>p.id===posId);if(!pos)return;visOffset=0;positionDrawings.forEach(p=>p._focused=p.id===posId);schedDraw();}
+
+document.getElementById('oiStat').style.display='flex';
+calcT();
+document.getElementById('tbSymbol').textContent=curSymDisplay;
+const _tfl2={'1m':'1М','5m':'5М','15m':'15М','30m':'30М','1h':'1Ч','4h':'4Ч','1d':'1Д'};
+document.getElementById('ciPair').textContent=curSymDisplay.replace('/','')+'  ·  '+(_tfl2[tf]||tf);
+
+fetch24h();setInterval(fetch24h,15000);
+if(mkt==='fut'){fetchFundingAndOI();}
+setInterval(()=>{if(mkt==='fut')fetchFundingAndOI();},30000);
+fetchC(tf).then(()=>{connectWS();connectWS2();});
+setInterval(()=>{if(!ws||ws.readyState===WebSocket.CLOSED||ws.readyState===WebSocket.CLOSING){console.log('[WS] watchdog reconnect');connectWS();}},30000);
+
+const ctxMenu=document.createElement('div');
+ctxMenu.id='ctxMenu';
+ctxMenu.style.cssText='display:none;position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:4px;min-width:160px;font-family:\'JetBrains Mono\',monospace;font-size:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);';
+document.body.appendChild(ctxMenu);
+
+function showCtxMenu(x,y,price){
+  ctxMenu.innerHTML=`
+    <div onclick="setTool('long',document.getElementById('tLong'));ctxMenu.style.display='none'" style="padding:6px 10px;cursor:pointer;color:var(--green);border-radius:4px" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">▲ Лонг от ${fmtP(price)}</div>
+    <div onclick="setTool('short',document.getElementById('tShort'));ctxMenu.style.display='none'" style="padding:6px 10px;cursor:pointer;color:var(--red);border-radius:4px" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">▼ Шорт от ${fmtP(price)}</div>
+    <div style="height:1px;background:var(--border);margin:2px 0"></div>
+    <div onclick="setTool('hray',document.getElementById('tHray'));ctxMenu.style.display='none'" style="padding:6px 10px;cursor:pointer;color:var(--text2);border-radius:4px" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">⟶ Горизонтальный уровень</div>
+    <div onclick="setTool('trend',document.getElementById('tTrend'));ctxMenu.style.display='none'" style="padding:6px 10px;cursor:pointer;color:var(--text2);border-radius:4px" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">╱ Линия тренда</div>
+    <div style="height:1px;background:var(--border);margin:2px 0"></div>
+    <div onclick="visOffset=0;visCount=120;schedDraw();ctxMenu.style.display='none'" style="padding:6px 10px;cursor:pointer;color:var(--text3);border-radius:4px" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">↺ Сбросить вид</div>`;
+  ctxMenu.style.display='block';
+  ctxMenu.style.left=Math.min(x,window.innerWidth-180)+'px';
+  ctxMenu.style.top=Math.min(y,window.innerHeight-220)+'px';
+}
+mainC.addEventListener('contextmenu',e=>{e.preventDefault();const r=mainC.getBoundingClientRect(),my=e.clientY-r.top;if(CM&&CM.rng&&CM.cH){const price=CM.mx-CM.rng*(my-CM.pad.t)/CM.cH;showCtxMenu(e.clientX,e.clientY,Math.max(0,price));}});
+document.addEventListener('click',()=>{ctxMenu.style.display='none';});
+document.addEventListener('contextmenu',e=>{if(e.target!==mainC)ctxMenu.style.display='none';});
+
+// ═══════════════════════════════════════════
+// AXONIZE CHANNEL — Broadcast задержка 5–10 мин
+// ═══════════════════════════════════════════
+let axzOpen=false,axzWs=null,axzTradesData=[],axzEquityData=[];
+const AXZ_WS='wss://bingx-proxy.duckdns.org/ws/stream';
+
+function axzDelay(){return(Math.floor(Math.random()*(600-300+1))+300)*1000;}
+
+function toggleAxzDrawer(){
+  axzOpen=!axzOpen;
+  document.getElementById('axzDrawer').classList.toggle('open',axzOpen);
+  document.getElementById('axzBtn').classList.toggle('open',axzOpen);
+  if(axzOpen){axzConnectBroadcast();setTimeout(()=>axzDrawEquity(),150);}
+}
+
+function axzConnectBroadcast(){
+  if(axzWs&&(axzWs.readyState===WebSocket.OPEN||axzWs.readyState===WebSocket.CONNECTING))return;
+  try{
+    axzWs=new WebSocket(AXZ_WS);
+    axzWs.onopen=()=>{const el=document.getElementById('axzStatus');el.textContent='● Broadcast подключён';el.style.color='var(--green)';};
+    axzWs.onmessage=e=>{try{const msg=JSON.parse(e.data);setTimeout(()=>axzHandleEvent(msg),axzDelay());}catch(_){}};
+    axzWs.onclose=()=>{const el=document.getElementById('axzStatus');el.textContent='Переподключение...';el.style.color='var(--text3)';if(axzOpen)setTimeout(axzConnectBroadcast,5000);};
+    axzWs.onerror=()=>{};
+  }catch(_){}
+}
+
+function axzHandleEvent(msg){
+  if(!msg||!msg.event)return;
+  const g=id=>document.getElementById(id);
+  if(msg.event==='trade.closed'){axzTradesData.unshift(msg);if(axzTradesData.length>50)axzTradesData.pop();axzRenderTrades();}
+  if(msg.event==='equity.update'){
+    axzEquityData.push({t:Date.now(),v:+msg.total_balance||0});if(axzEquityData.length>200)axzEquityData.shift();axzDrawEquity();
+    if(msg.total_balance)g('axzBalance').textContent='$'+fmtN(+msg.total_balance,2);
+    if(msg.pnl_today!==undefined){const v=+msg.pnl_today,pos=v>=0;g('axzPnlDay').textContent=(pos?'+':'')+'$'+fmtN(Math.abs(v),2);g('axzPnlDay').style.color=pos?'var(--green)':'var(--red)';}
+    if(msg.pnl_week!==undefined){const v=+msg.pnl_week,pos=v>=0;g('axzPnlWeek').textContent=(pos?'+':'')+'$'+fmtN(Math.abs(v),2);g('axzPnlWeek').style.color=pos?'var(--green)':'var(--red)';}
+    if(msg.total_pnl!==undefined){const v=+msg.total_pnl,pos=v>=0;g('axzPnlTotal').textContent=(pos?'+':'')+'$'+fmtN(Math.abs(v),2);g('axzPnlTotal').style.color=pos?'var(--green)':'var(--red)';}
+  }
+  if(msg.event==='stats.update'){if(msg.win_rate!==undefined)g('axzWinRate').textContent=fmtN(+msg.win_rate,1)+'%';if(msg.total_trades!==undefined)g('axzTradesCount').textContent=msg.total_trades;if(msg.sharpe!==undefined)g('axzSharpe').textContent=fmtN(+msg.sharpe,2);if(msg.max_dd!==undefined)g('axzDD').textContent=fmtN(+msg.max_dd,1)+'%';}
+  if(msg.event==='system.status'){const el=g('axzStatus');el.textContent=msg.status==='online'?'● Система активна':msg.status==='pause'?'⏸ Пауза':'○ Офлайн';el.style.color=msg.status==='online'?'var(--green)':msg.status==='pause'?'var(--yellow)':'var(--red)';}
+}
+
+function axzRenderTrades(){
+  const el=document.getElementById('axzTradesList');if(!axzTradesData.length)return;
+  el.innerHTML=axzTradesData.map(t=>{const isLong=t.side==='BUY'||t.side==='long',pnl=+(t.pnl||t.realized_pnl||0),pos=pnl>=0,sym=(t.symbol||'—').replace('-USDT',''),time=t.timestamp?new Date(t.timestamp).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';return`<div class="axz-trade-row"><span class="axz-badge ${isLong?'l':'s'}">${isLong?'L':'S'}</span><span style="color:var(--text);font-weight:600;min-width:36px">${sym}</span><span style="color:var(--text3);font-size:8px">${time}</span><span style="color:${pos?'var(--green)':'var(--red)'};margin-left:auto;font-weight:700">${pos?'+':''}$${fmtN(Math.abs(pnl),2)}</span></div>`;}).join('');
+}
+
+function axzDemoEquity(){let v=1000,t=Date.now()-45*24*3600*1000;return Array.from({length:90},()=>{v+=(Math.random()-.41)*18;v=Math.max(850,v);t+=12*3600*1000;return{t,v};});}
+
+function axzDrawEquity(){
+  const canvas=document.getElementById('axzEquityC');if(!canvas)return;
+  const wrap=canvas.parentElement,W=wrap.clientWidth||400,H=wrap.clientHeight||140;
+  canvas.width=W;canvas.height=H;
+  const c2=canvas.getContext('2d');c2.clearRect(0,0,W,H);
+  c2.fillStyle=isLightTheme?'#f8f9fa':'#0f1318';c2.fillRect(0,0,W,H);
+  const data=axzEquityData.length>=3?axzEquityData:axzDemoEquity();
+  const vals=data.map(d=>d.v),mnV=Math.min(...vals),mxV=Math.max(...vals),rng=mxV-mnV||1;
+  const pad={l:8,r:8,t:10,b:6},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+  const toX=i=>pad.l+(i/Math.max(data.length-1,1))*cW,toY=v=>pad.t+cH*(1-(v-mnV)/rng);
+  c2.strokeStyle=isLightTheme?'#e8eaf0':'#1c2330';c2.lineWidth=.5;
+  [.25,.5,.75].forEach(f=>{const y=pad.t+cH*f;c2.beginPath();c2.moveTo(pad.l,y);c2.lineTo(W-pad.r,y);c2.stroke();});
+  const isPos=data[data.length-1].v>=data[0].v,gCol=isPos?'0,200,150':'255,68,102';
+  const grad=c2.createLinearGradient(0,pad.t,0,pad.t+cH);grad.addColorStop(0,`rgba(${gCol},.3)`);grad.addColorStop(1,`rgba(${gCol},0)`);
+  c2.fillStyle=grad;c2.beginPath();c2.moveTo(toX(0),toY(data[0].v));data.forEach((d,i)=>c2.lineTo(toX(i),toY(d.v)));c2.lineTo(toX(data.length-1),H);c2.lineTo(toX(0),H);c2.closePath();c2.fill();
+  c2.strokeStyle=isPos?'#00c896':'#ff4466';c2.lineWidth=1.8;c2.lineJoin='round';c2.beginPath();data.forEach((d,i)=>i===0?c2.moveTo(toX(0),toY(d.v)):c2.lineTo(toX(i),toY(d.v)));c2.stroke();
+  c2.fillStyle=isPos?'#00c896':'#ff4466';c2.beginPath();c2.arc(toX(data.length-1),toY(data[data.length-1].v),3,0,Math.PI*2);c2.fill();
+  c2.font='bold 8px JetBrains Mono,monospace';c2.textAlign='right';c2.fillStyle=isPos?'#00c896':'#ff4466';c2.fillText('$'+fmtN(mxV,0),W-pad.r-2,pad.t+10);c2.fillStyle=isLightTheme?'#8a96a8':'#4a5a7a';c2.fillText('$'+fmtN(mnV,0),W-pad.r-2,H-pad.b-2);
+}
+window.addEventListener('resize',()=>{if(axzOpen)setTimeout(axzDrawEquity,50);});
+</script>
+</body>
+</html>
