@@ -1036,7 +1036,7 @@ function drawOBHeatmap(){
 }
 
 function drawOrderBookWalls(){
-  if(!CM||!CM.rng||!showStop) return;
+  if(!CM||!CM.rng||!showLiq) return;
   const{pad,cW,toY,cH,mn,mx}=CM;
   const p=curP; if(!p) return;
   const cs=ST[mkt].candles[tf]; if(!cs||cs.length<2) return;
@@ -1045,10 +1045,25 @@ function drawOrderBookWalls(){
   const h7d=Math.max(...week.map(c=>c.h));
   const l7d=Math.min(...week.map(c=>c.l));
 
+  function getBigWall(arr,side){
+    if(!arr||!arr.length) return null;
+    const sorted=side==='ask'?arr.filter(r=>r[0]>p).sort((a,b)=>a[0]-b[0]):arr.filter(r=>r[0]<p).sort((a,b)=>b[0]-a[0]);
+    if(!sorted.length) return null;
+    const maxQ=Math.max(...arr.map(r=>r[1]),.001);
+    const wall=sorted.reduce((a,b)=>b[1]>a[1]?b:a);
+    const wi=sorted.findIndex(r=>r[0]===wall[0]);
+    let priceBot,priceTop;
+    if(side==='ask'){priceBot=wall[0];priceTop=wi+1<sorted.length?sorted[wi+1][0]:wall[0]*(1+.0005);}
+    else{priceTop=wall[0];priceBot=wi+1<sorted.length?sorted[wi+1][0]:wall[0]*(1-.0005);}
+    const minH=wall[0]*.001;
+    if(side==='ask'&&priceTop-priceBot<minH)priceTop=priceBot+minH;
+    if(side==='bid'&&priceTop-priceBot<minH)priceBot=priceTop-minH;
+    return{priceBot,priceTop,qty:wall[1],maxQ};
+  }
   function getBigWallAbove(arr,minPrice){
     if(!arr||!arr.length) return null;
     const filtered=arr.filter(r=>r[0]>minPrice).sort((a,b)=>a[0]-b[0]);
-    if(!filtered.length) return null;
+    if(!filtered.length) return getBigWall(arr,'ask');
     const maxQ=Math.max(...arr.map(r=>r[1]),.001);
     const wall=filtered.reduce((a,b)=>b[1]>a[1]?b:a);
     const wi=filtered.findIndex(r=>r[0]===wall[0]);
@@ -1059,7 +1074,7 @@ function drawOrderBookWalls(){
   function getBigWallBelow(arr,maxPrice){
     if(!arr||!arr.length) return null;
     const filtered=arr.filter(r=>r[0]<maxPrice).sort((a,b)=>b[0]-a[0]);
-    if(!filtered.length) return null;
+    if(!filtered.length) return getBigWall(arr,'bid');
     const maxQ=Math.max(...arr.map(r=>r[1]),.001);
     const wall=filtered.reduce((a,b)=>b[1]>a[1]?b:a);
     const wi=filtered.findIndex(r=>r[0]===wall[0]);
