@@ -1040,223 +1040,107 @@ function drawOrderBookWalls(){
   const{pad,cW,toY,cH,mn,mx}=CM;
   const p=curP; if(!p) return;
   const cs=ST[mkt].candles[tf]; if(!cs||cs.length<2) return;
-  const perWeek=Math.round(604800000/TF_MS[tf]);
-  const week=cs.slice(-Math.min(perWeek,cs.length));
+  const week=cs.slice(-Math.min(Math.round(604800000/TF_MS[tf]),cs.length));
   const h7d=Math.max(...week.map(c=>c.h));
   const l7d=Math.min(...week.map(c=>c.l));
 
-  function getBigWall(arr,side){
+  // Ищем крупнейшую Ask выше H7d (стопы шортистов)
+  function getBigAskAbove(arr, minP){
     if(!arr||!arr.length) return null;
-    const sorted=side==='ask'?arr.filter(r=>r[0]>p).sort((a,b)=>a[0]-b[0]):arr.filter(r=>r[0]<p).sort((a,b)=>b[0]-a[0]);
-    if(!sorted.length) return null;
-    const maxQ=Math.max(...arr.map(r=>r[1]),.001);
-    const wall=sorted.reduce((a,b)=>b[1]>a[1]?b:a);
+    const f=arr.filter(r=>r[0]>minP);
+    if(!f.length) return null;
+    const wall=f.reduce((a,b)=>b[1]>a[1]?b:a);
+    const wi=f.findIndex(r=>r[0]===wall[0]);
+    const bot=wall[0], top=wi+1<f.length?f[wi+1][0]:wall[0]*(1+.001);
+    return{bot,top:Math.max(top,bot+wall[0]*.0008),qty:wall[1]};
+  }
+  // Ищем крупнейший Bid ниже L7d (стопы лонгистов)
+  function getBigBidBelow(arr, maxP){
+    if(!arr||!arr.length) return null;
+    const f=arr.filter(r=>r[0]<maxP);
+    if(!f.length) return null;
+    const wall=f.reduce((a,b)=>b[1]>a[1]?b:a);
+    const sorted=f.sort((a,b)=>b[0]-a[0]);
     const wi=sorted.findIndex(r=>r[0]===wall[0]);
-    let priceBot,priceTop;
-    if(side==='ask'){priceBot=wall[0];priceTop=wi+1<sorted.length?sorted[wi+1][0]:wall[0]*(1+.0005);}
-    else{priceTop=wall[0];priceBot=wi+1<sorted.length?sorted[wi+1][0]:wall[0]*(1-.0005);}
-    const minH=wall[0]*.001;
-    if(side==='ask'&&priceTop-priceBot<minH)priceTop=priceBot+minH;
-    if(side==='bid'&&priceTop-priceBot<minH)priceBot=priceTop-minH;
-    return{priceBot,priceTop,qty:wall[1],maxQ};
-  }
-  function getBigWallAbove(arr,minPrice){
-    if(!arr||!arr.length) return null;
-    const filtered=arr.filter(r=>r[0]>minPrice).sort((a,b)=>a[0]-b[0]);
-    if(!filtered.length) return getBigWall(arr,'ask');
-    const maxQ=Math.max(...arr.map(r=>r[1]),.001);
-    const wall=filtered.reduce((a,b)=>b[1]>a[1]?b:a);
-    const wi=filtered.findIndex(r=>r[0]===wall[0]);
-    const priceBot=wall[0];
-    const priceTop=wi+1<filtered.length?filtered[wi+1][0]:wall[0]*(1+.0005);
-    return{priceBot,priceTop:Math.max(priceTop,priceBot+wall[0]*.001),qty:wall[1],maxQ};
-  }
-  function getBigWallBelow(arr,maxPrice){
-    if(!arr||!arr.length) return null;
-    const filtered=arr.filter(r=>r[0]<maxPrice).sort((a,b)=>b[0]-a[0]);
-    if(!filtered.length) return getBigWall(arr,'bid');
-    const maxQ=Math.max(...arr.map(r=>r[1]),.001);
-    const wall=filtered.reduce((a,b)=>b[1]>a[1]?b:a);
-    const wi=filtered.findIndex(r=>r[0]===wall[0]);
-    const priceTop=wall[0];
-    const priceBot=wi+1<filtered.length?filtered[wi+1][0]:wall[0]*(1-.0005);
-    return{priceBot:Math.min(priceBot,priceTop-wall[0]*.001),priceTop,qty:wall[1],maxQ};
+    const top=wall[0], bot=wi+1<sorted.length?sorted[wi+1][0]:wall[0]*(1-.001);
+    return{bot:Math.min(bot,top-wall[0]*.0008),top,qty:wall[1]};
   }
 
-  const sAsk=getBigWallAbove(ST.spot.asks,p*0.9999);
-  const fAsk=getBigWallAbove(ST.fut.asks,p*0.9999);
-  const sBid=getBigWallBelow(ST.spot.bids,p*1.0001);
-  const fBid=getBigWallBelow(ST.fut.bids,p*1.0001);
-  if(!sAsk&&!fAsk&&!sBid&&!fBid) return;
+  const sAsk=getBigAskAbove(ST.spot.asks, h7d);
+  const fAsk=getBigAskAbove(ST.fut.asks,  h7d);
+  const sBid=getBigBidBelow(ST.spot.bids, l7d);
+  const fBid=getBigBidBelow(ST.fut.bids,  l7d);
 
   const xMid=pad.l+cW/2, xEnd=pad.l+cW;
+
+  // Разделитель СПОТ | ФЬЮЧ
   ctx.save();
-  ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.setLineDash([2,6]);
+  ctx.strokeStyle='rgba(255,255,255,0.12)';
+  ctx.lineWidth=1; ctx.setLineDash([2,5]);
   ctx.beginPath(); ctx.moveTo(xMid,pad.t+14); ctx.lineTo(xMid,pad.t+cH); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.font='7px JetBrains Mono,monospace'; ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.font='7px JetBrains Mono,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,255,255,0.18)';
   ctx.fillText('СПОТ',pad.l+cW/4,pad.t+11);
   ctx.fillText('ФЬЮЧ',xMid+cW/4,pad.t+11);
+  ctx.restore();
 
-  function drawHalf(wall,xFrom,xTo,isAsk,isSpot){
+  function drawWall(wall, xFrom, xTo, isAsk, isSpot){
     if(!wall) return;
-    const{priceBot,priceTop,qty}=wall;
+    const{bot,top,qty}=wall;
     const rectW=xTo-xFrom;
     const volStr=qty>=1e6?(qty/1e6).toFixed(1)+'M':qty>=1e3?(qty/1e3).toFixed(1)+'K':qty.toFixed(1);
-    if(priceTop<mn||priceBot>mx){
-      const above=(priceBot+priceTop)/2>mx;
-      const ey=above?pad.t+20:pad.t+cH-6;
+    const mid=(bot+top)/2;
+
+    // Вне экрана — рисуем стрелку
+    if(top<mn||bot>mx){
+      const above=mid>mx;
+      const ey=above?pad.t+22:pad.t+cH-8;
+      ctx.save();
       ctx.font='bold 8px JetBrains Mono,monospace';
-      const txt=(above?'▲ ':'▼ ')+volStr, tw=ctx.measureText(txt).width+8;
-      ctx.fillStyle=isAsk?(isSpot?'rgba(255,120,120,.85)':'rgba(200,30,30,.85)'):(isSpot?'rgba(60,210,130,.85)':'rgba(0,150,60,.85)');
+      const txt=(above?'▲ ':'▼ ')+volStr;
+      const tw=ctx.measureText(txt).width+8;
+      ctx.fillStyle=isAsk
+        ?(isSpot?'rgba(255,120,120,0.85)':'rgba(200,30,30,0.85)')
+        :(isSpot?'rgba(60,210,130,0.85)':'rgba(0,150,60,0.85)');
       ctx.fillRect(xFrom+rectW/2-tw/2,ey-10,tw,14);
-      ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.fillText(txt,xFrom+rectW/2-tw/2+4,ey+1);
-      return;
+      ctx.fillStyle='#fff'; ctx.textAlign='left';
+      ctx.fillText(txt,xFrom+rectW/2-tw/2+4,ey+1);
+      ctx.restore(); return;
     }
-    const y1=Math.max(toY(priceTop),pad.t), y2=Math.min(toY(priceBot),pad.t+cH);
+
+    // На экране — рисуем зону
+    const y1=Math.max(toY(top),pad.t);
+    const y2=Math.min(toY(bot),pad.t+cH);
     const rh=Math.max(6,y2-y1);
+
+    ctx.save();
     if(isAsk){
-      ctx.fillStyle=isSpot?'rgba(255,180,180,.22)':'rgba(200,20,20,.42)';
+      ctx.fillStyle=isSpot?'rgba(255,180,180,0.22)':'rgba(200,20,20,0.42)';
       ctx.fillRect(xFrom,y1,rectW,rh);
-      ctx.strokeStyle=isSpot?'rgba(255,150,150,.7)':'rgba(255,50,50,.95)';
-      ctx.lineWidth=isSpot?1:2.5; ctx.setLineDash([]);
+      ctx.strokeStyle=isSpot?'rgba(255,150,150,0.7)':'rgba(255,40,40,0.95)';
+      ctx.lineWidth=isSpot?1:2; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(xFrom,y2); ctx.lineTo(xTo,y2); ctx.stroke();
     } else {
-      ctx.fillStyle=isSpot?'rgba(100,230,150,.22)':'rgba(0,150,60,.42)';
+      ctx.fillStyle=isSpot?'rgba(100,230,150,0.22)':'rgba(0,150,60,0.42)';
       ctx.fillRect(xFrom,y1,rectW,rh);
-      ctx.strokeStyle=isSpot?'rgba(80,230,140,.7)':'rgba(0,210,80,.95)';
-      ctx.lineWidth=isSpot?1:2.5; ctx.setLineDash([]);
+      ctx.strokeStyle=isSpot?'rgba(80,230,140,0.7)':'rgba(0,210,80,0.95)';
+      ctx.lineWidth=isSpot?1:2; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(xFrom,y1); ctx.lineTo(xTo,y1); ctx.stroke();
     }
     if(rh>14){
       ctx.font='bold 8px JetBrains Mono,monospace';
-      ctx.fillStyle=isAsk?'rgba(255,230,230,.9)':'rgba(210,255,225,.9)';
+      ctx.fillStyle=isAsk?'rgba(255,230,230,0.9)':'rgba(210,255,225,0.9)';
       ctx.textAlign='center';
       ctx.fillText(volStr,xFrom+rectW/2,y1+rh/2+3);
     }
+    ctx.restore();
   }
 
-  drawHalf(sAsk,pad.l,xMid,true,true);
-  drawHalf(fAsk,xMid,xEnd,true,false);
-  drawHalf(sBid,pad.l,xMid,false,true);
-  drawHalf(fBid,xMid,xEnd,false,false);
-  ctx.restore();
+  drawWall(sAsk,pad.l,xMid,true,true);
+  drawWall(fAsk,xMid,xEnd,true,false);
+  drawWall(sBid,pad.l,xMid,false,true);
+  drawWall(fBid,xMid,xEnd,false,false);
 }
 
-function drawPositions(){if(!positionDrawings.length||!CM.rng)return;const{pad,W,toY,cH}=CM;positionDrawings.forEach(pos=>{const isLong=pos.side==='long',yEntry=toY(pos.entry),yTP=toY(pos.tp),ySL=toY(pos.sl),clamp=y=>Math.min(Math.max(y,pad.t),pad.t+cH);ctx.save();const line=(y,col,lw,dash=[])=>{ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(pad.l,clamp(y));ctx.lineTo(W-pad.r,clamp(y));ctx.stroke();ctx.setLineDash([]);};if(pos.pending){line(yEntry,isLong?'#00c896':'#ff4466',1.5,[4,4]);}else{line(yTP,'#00c896',1.5,[6,3]);line(yEntry,isLong?'#00c896':'#ff4466',1.5);line(ySL,'#ff4466',1.5,[6,3]);const badge=(rawY,label,price,bg)=>{const y=clamp(rawY),txt=label+' '+fmtP(price);ctx.font='bold 8px JetBrains Mono,monospace';const tw=ctx.measureText(txt).width,bw=tw+8,bh=14,bx=W-pad.r-bw-3;ctx.fillStyle=bg;ctx.fillRect(bx,y-bh/2,bw,bh);ctx.fillStyle='#fff';ctx.textAlign='left';ctx.fillText(txt,bx+4,y+4);};badge(yTP,'TP',pos.tp,'rgba(0,200,150,0.9)');badge(yEntry,'ENT',pos.entry,'rgba(59,130,246,0.8)');badge(ySL,'SL',pos.sl,'rgba(255,68,102,0.9)');}ctx.restore();});}
 
-const POS=[];
-function setBP(el,tab){document.querySelectorAll('.bp-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');const c=document.getElementById('bpC');if(tab==='pos'){const totalPos=positionDrawings.length+POS.length;const tabEl=document.getElementById('bpTabPos');if(tabEl)tabEl.textContent=`Позиции (${totalPos})`;if(totalPos===0){c.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Нет открытых позиций</div>';return;}const drawn=positionDrawings.map(pos=>{const isLong=pos.side==='long',pct=+(document.getElementById('posSizePct')?.value||10)/100,margin=12450*pct,qty=margin*lev/(pos.entry||1),pnl=pos.pending?0:(curP-pos.entry)*qty*(isLong?1:-1),pp=pos.pending?0:pnl/margin*100;return{sym:curSymDisplay.replace('/',''),dir:pos.side,sz:qty,un:curSym.replace('-USDT',''),lev,en:pos.entry,liq:isLong?pos.entry*(1-.008/lev):pos.entry*(1+.008/lev),tp:fmtP(pos.tp),sl:fmtP(pos.sl),mg:margin,pnl,pp,fromChart:true,pending:pos.pending};});const allPos=[...drawn,...POS];c.innerHTML='<table class="bpt"><thead><tr><th>Пара</th><th>Напр.</th><th>Размер</th><th>Вход</th><th>Рынок</th><th>П/У</th><th>Ликвид.</th><th>Маржа</th><th>ТП/СЛ</th><th>Действия</th></tr></thead><tbody>'+allPos.map(p=>{const g=p.pnl>=0,f=p.en<1?6:2;return`<tr><td>${p.sym}</td><td><span class="${p.dir==='long'?'bl':'bs'}">${p.dir==='long'?'Лонг':'Шорт'}</span> ${p.lev}×</td><td>${typeof p.sz==='number'?p.sz.toFixed(p.sz<1?3:2):p.sz} ${p.un}</td><td>${typeof p.en==='number'?p.en.toFixed(f):p.en}</td><td>${fmtP(curP||71000)}</td><td class="${g?'pg':'pr'}">${g?'+':''}${p.pnl.toFixed(2)}</td><td>${typeof p.liq==='number'?fmtP(p.liq):'—'}</td><td>${typeof p.mg==='number'?p.mg.toFixed(2):p.mg}</td><td style="color:var(--accent)">${p.tp}/${p.sl}</td><td>${p.fromChart?`<button class="ab ab-c" onclick="positionDrawings=[];setBP(document.querySelector('.bp-tab.active'),'pos');drawChart()">Закр.</button>`:`<button class="ab ab-c">Закр.</button>`}</td></tr>`;}).join('')+'</tbody></table>';}else{c.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Нет данных</div>';}}
-function closeAllPositions(){positionDrawings=[];drawChart();const at=document.querySelector('.bp-tab.active');if(at)setBP(at,'pos');}
-
-function toggleSymPicker(el){const searchWrap=document.getElementById('symSearchWrap'),btn=document.getElementById('symPickerBtn'),picker=document.getElementById('symPicker');searchWrap.style.display='flex';btn.style.display='none';const inp=document.getElementById('symSearchInput');inp.value='';inp.focus();filterSyms('');picker.style.display='block';}
-function closeSymSearch(){document.getElementById('symSearchWrap').style.display='none';document.getElementById('symPickerBtn').style.display='flex';document.getElementById('symPicker').style.display='none';}
-function filterSyms(q){const picker=document.getElementById('symPicker');const filtered=q?SYMBOLS.filter(s=>s.label.toLowerCase().includes(q.toLowerCase())||s.sym.toLowerCase().includes(q.toLowerCase())):SYMBOLS;picker.innerHTML=filtered.map(s=>`<div onclick="setSym('${s.sym}','${s.label}');closeSymSearch()" style="padding:6px 10px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:4px;font-size:10px;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''"><span style="width:16px;text-align:center">${s.icon}</span><span style="font-weight:600">${s.label}</span></div>`).join('');}
-function symSearchKey(e){if(e.key==='Escape')closeSymSearch();if(e.key==='Enter'){const q=e.target.value.trim(),found=SYMBOLS.find(s=>s.label.toLowerCase().includes(q.toLowerCase())||s.sym.toLowerCase().includes(q.toLowerCase()));if(found){setSym(found.sym,found.label);closeSymSearch();}}}
-document.addEventListener('click',e=>{const w=document.getElementById('symSearchWrap'),b=document.getElementById('symPickerBtn'),p=document.getElementById('symPicker');if(w&&w.style.display!=='none'){if(!w.contains(e.target)&&!p.contains(e.target)&&!b.contains(e.target))closeSymSearch();}});
-
-function openProxyModal(){const saved=localStorage.getItem('ws_proxy_url')||'';document.getElementById('proxyUrlInput').value=saved;document.getElementById('proxyStatus').textContent=saved?'✓ Прокси: '+saved:'Прямое подключение';document.getElementById('proxyModal').style.display='flex';}
-function closeProxyModal(){document.getElementById('proxyModal').style.display='none';}
-document.getElementById('proxyModal').addEventListener('click',function(e){if(e.target===this)closeProxyModal();});
-function saveProxy(){let url=document.getElementById('proxyUrlInput').value.trim();if(!url){clearProxy();return;}url=url.replace(/^https:\/\//,'wss://').replace(/^http:\/\//,'ws://').replace(/\/+$/,'');localStorage.setItem('ws_proxy_url',url);window.WS_PROXY_URL=url;document.getElementById('proxyStatus').textContent='✓ Сохранено. Переподключение...';setTimeout(()=>{closeProxyModal();connectWS();},800);}
-function clearProxy(){localStorage.removeItem('ws_proxy_url');window.WS_PROXY_URL=null;document.getElementById('proxyStatus').textContent='Сброшено.';setTimeout(()=>{closeProxyModal();connectWS();},800);}
-(function(){const saved=localStorage.getItem('ws_proxy_url');if(saved){window.WS_PROXY_URL=saved;}})();
-
-function openDep(){document.getElementById('depModal').style.display='flex';}
-function closeDep(){document.getElementById('depModal').style.display='none';}
-document.getElementById('depModal').addEventListener('click',function(e){if(e.target===this)closeDep();});
-function setDM(m){document.getElementById('dSpot').className='dep-card'+(m==='spot'?' as':'');document.getElementById('dFut').className='dep-card'+(m==='fut'?' af':'');}
-function cpAddr(){const t=document.createElement('div');t.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1c2330;border:1px solid var(--green);color:var(--green);padding:8px 20px;border-radius:6px;font-size:11px;z-index:9999;font-family:JetBrains Mono,monospace;';t.textContent='✓ Адрес скопирован';document.body.appendChild(t);setTimeout(()=>t.remove(),1500);}
-
-function toggleFS(){const btn=document.getElementById('fsBtn');if(!document.fullscreenElement){document.documentElement.requestFullscreen().then(()=>{btn.textContent='✕';}).catch(()=>{});}else{document.exitFullscreen().then(()=>{btn.textContent='⛶';}).catch(()=>{});}}
-
-let isLightTheme=localStorage.getItem('nt_theme')==='light';
-function applyTheme(){document.body.classList.toggle('light-theme',isLightTheme);schedDraw();}
-function toggleTheme(){isLightTheme=!isLightTheme;localStorage.setItem('nt_theme',isLightTheme?'light':'dark');applyTheme();}
-applyTheme();
-
-setInterval(()=>{document.getElementById('cTime').textContent=new Date().toTimeString().slice(0,8);},1000);
-window.addEventListener('resize',()=>{setVH();drawChart();});
-function setVH(){document.documentElement.style.setProperty('--vh',window.innerHeight*.01+'px');}
-setVH();
-
-// ═══════════════════════════════════════════
-// AXONIZE CHANNEL
-// Broadcast с задержкой 5–10 мин (300–600 сек)
-// ═══════════════════════════════════════════
-let axzOpen=false,axzWs=null,axzTradesData=[],axzEquityData=[];
-const AXZ_WS='wss://bingx-proxy.duckdns.org/ws/stream';
-
-function axzDelay(){return(Math.floor(Math.random()*(600-300+1))+300)*1000;}
-
-function toggleAxzDrawer(){
-  axzOpen=!axzOpen;
-  document.getElementById('axzDrawer').classList.toggle('open',axzOpen);
-  document.getElementById('axzBtn').classList.toggle('open',axzOpen);
-  if(axzOpen){axzConnectBroadcast();setTimeout(()=>axzDrawEquity(),150);}
-}
-
-function axzConnectBroadcast(){
-  if(axzWs&&(axzWs.readyState===WebSocket.OPEN||axzWs.readyState===WebSocket.CONNECTING))return;
-  try{
-    axzWs=new WebSocket(AXZ_WS);
-    axzWs.onopen=()=>{const el=document.getElementById('axzStatus');el.textContent='● Broadcast подключён';el.style.color='var(--green)';};
-    axzWs.onmessage=e=>{try{const msg=JSON.parse(e.data);setTimeout(()=>axzHandleEvent(msg),axzDelay());}catch(_){}};
-    axzWs.onclose=()=>{const el=document.getElementById('axzStatus');el.textContent='Переподключение...';el.style.color='var(--text3)';if(axzOpen)setTimeout(axzConnectBroadcast,5000);};
-    axzWs.onerror=()=>{};
-  }catch(_){}
-}
-
-function axzHandleEvent(msg){
-  if(!msg||!msg.event)return;
-  const g=id=>document.getElementById(id);
-  if(msg.event==='trade.closed'){axzTradesData.unshift(msg);if(axzTradesData.length>50)axzTradesData.pop();axzRenderTrades();}
-  if(msg.event==='equity.update'){
-    axzEquityData.push({t:Date.now(),v:+msg.total_balance||0});if(axzEquityData.length>200)axzEquityData.shift();axzDrawEquity();
-    if(msg.total_balance){g('axzBalance').textContent='$'+fmtN(+msg.total_balance,2);}
-    if(msg.pnl_today!==undefined){const v=+msg.pnl_today,pos=v>=0;g('axzPnlDay').textContent=(pos?'+':'')+'$'+fmtN(Math.abs(v),2);g('axzPnlDay').style.color=pos?'var(--green)':'var(--red)';}
-    if(msg.pnl_week!==undefined){const v=+msg.pnl_week,pos=v>=0;g('axzPnlWeek').textContent=(pos?'+':'')+'$'+fmtN(Math.abs(v),2);g('axzPnlWeek').style.color=pos?'var(--green)':'var(--red)';}
-    if(msg.total_pnl!==undefined){const v=+msg.total_pnl,pos=v>=0;g('axzPnlTotal').textContent=(pos?'+':'')+'$'+fmtN(Math.abs(v),2);g('axzPnlTotal').style.color=pos?'var(--green)':'var(--red)';}
-  }
-  if(msg.event==='stats.update'){if(msg.win_rate!==undefined)g('axzWinRate').textContent=fmtN(+msg.win_rate,1)+'%';if(msg.total_trades!==undefined)g('axzTradesCount').textContent=msg.total_trades;if(msg.sharpe!==undefined)g('axzSharpe').textContent=fmtN(+msg.sharpe,2);if(msg.max_dd!==undefined)g('axzDD').textContent=fmtN(+msg.max_dd,1)+'%';}
-  if(msg.event==='system.status'){const el=g('axzStatus');el.textContent=msg.status==='online'?'● Система активна':msg.status==='pause'?'⏸ Пауза':'○ Офлайн';el.style.color=msg.status==='online'?'var(--green)':msg.status==='pause'?'var(--yellow)':'var(--red)';}
-}
-
-function axzRenderTrades(){
-  const el=document.getElementById('axzTradesList');if(!axzTradesData.length)return;
-  el.innerHTML=axzTradesData.map(t=>{const isLong=t.side==='BUY'||t.side==='long',pnl=+(t.pnl||t.realized_pnl||0),pos=pnl>=0,sym=(t.symbol||'—').replace('-USDT',''),time=t.timestamp?new Date(t.timestamp).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';return`<div class="axz-trade-row"><span class="axz-badge ${isLong?'l':'s'}">${isLong?'L':'S'}</span><span style="color:var(--text);font-weight:600;min-width:36px">${sym}</span><span style="color:var(--text3);font-size:8px">${time}</span><span style="color:${pos?'var(--green)':'var(--red)'};margin-left:auto;font-weight:700">${pos?'+':''}$${fmtN(Math.abs(pnl),2)}</span></div>`;}).join('');
-}
-
-function axzDemoEquity(){let v=1000,t=Date.now()-45*24*3600*1000;return Array.from({length:90},()=>{v+=(Math.random()-.41)*18;v=Math.max(850,v);t+=12*3600*1000;return{t,v};});}
-
-function axzDrawEquity(){
-  const canvas=document.getElementById('axzEquityC');if(!canvas)return;
-  const wrap=canvas.parentElement,W=wrap.clientWidth||400,H=wrap.clientHeight||140;
-  canvas.width=W;canvas.height=H;
-  const c2=canvas.getContext('2d');c2.clearRect(0,0,W,H);
-  c2.fillStyle=isLightTheme?'#f8f9fa':'#0f1318';c2.fillRect(0,0,W,H);
-  const data=axzEquityData.length>=3?axzEquityData:axzDemoEquity();
-  const vals=data.map(d=>d.v),mnV=Math.min(...vals),mxV=Math.max(...vals),rng=mxV-mnV||1;
-  const pad={l:8,r:8,t:10,b:6},cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
-  const toX=i=>pad.l+(i/Math.max(data.length-1,1))*cW,toY=v=>pad.t+cH*(1-(v-mnV)/rng);
-  c2.strokeStyle=isLightTheme?'#e8eaf0':'#1c2330';c2.lineWidth=.5;
-  [.25,.5,.75].forEach(f=>{const y=pad.t+cH*f;c2.beginPath();c2.moveTo(pad.l,y);c2.lineTo(W-pad.r,y);c2.stroke();});
-  const isPos=data[data.length-1].v>=data[0].v,gCol=isPos?'0,200,150':'255,68,102';
-  const grad=c2.createLinearGradient(0,pad.t,0,pad.t+cH);grad.addColorStop(0,`rgba(${gCol},.3)`);grad.addColorStop(1,`rgba(${gCol},0)`);
-  c2.fillStyle=grad;c2.beginPath();c2.moveTo(toX(0),toY(data[0].v));data.forEach((d,i)=>c2.lineTo(toX(i),toY(d.v)));c2.lineTo(toX(data.length-1),H);c2.lineTo(toX(0),H);c2.closePath();c2.fill();
-  c2.strokeStyle=isPos?'#00c896':'#ff4466';c2.lineWidth=1.8;c2.lineJoin='round';c2.beginPath();data.forEach((d,i)=>i===0?c2.moveTo(toX(0),toY(d.v)):c2.lineTo(toX(i),toY(d.v)));c2.stroke();
-  c2.fillStyle=isPos?'#00c896':'#ff4466';c2.beginPath();c2.arc(toX(data.length-1),toY(data[data.length-1].v),3,0,Math.PI*2);c2.fill();
-  c2.font='bold 8px JetBrains Mono,monospace';c2.textAlign='right';c2.fillStyle=isPos?'#00c896':'#ff4466';c2.fillText('$'+fmtN(mxV,0),W-pad.r-2,pad.t+10);c2.fillStyle=isLightTheme?'#8a96a8':'#4a5a7a';c2.fillText('$'+fmtN(mnV,0),W-pad.r-2,H-pad.b-2);
-}
-window.addEventListener('resize',()=>{if(axzOpen)setTimeout(axzDrawEquity,50);});
-
-// Инициализация
-document.getElementById('tbSymbol').textContent=curSymDisplay;
-calcT();fetch24h();setInterval(fetch24h,15000);
-if(mkt==='fut'){fetchFundingAndOI();setInterval(()=>{if(mkt==='fut')fetchFundingAndOI();},30000);}
-fetchC(tf).then(()=>{connectWS();connectWS2();});
-setInterval(()=>{if(!ws||ws.readyState===WebSocket.CLOSED||ws.readyState===WebSocket.CLOSING){connectWS();}},30000);
-setBP(document.getElementById('bpTabPos'),'pos');
-</script>
-</body>
-</html>
