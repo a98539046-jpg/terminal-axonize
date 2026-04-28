@@ -222,34 +222,6 @@ canvas{position:absolute;top:0;left:0;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:2px;}
 
-/* ═══ AXONIZE CHANNEL ═══ */
-.axz-btn{padding:4px 12px;background:linear-gradient(135deg,#0d1e38,#091728);border:1px solid #3b82f6;border-radius:6px;color:#3b82f6;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.5px;transition:all .2s;display:flex;align-items:center;gap:5px;white-space:nowrap;}
-.axz-btn:hover{border-color:#60a5fa;color:#60a5fa;box-shadow:0 0 14px rgba(59,130,246,.35);}
-.axz-btn.open{border-color:#00c896;color:#00c896;box-shadow:0 0 14px rgba(0,200,150,.3);}
-.axz-dot{width:6px;height:6px;border-radius:50%;background:#00c896;flex-shrink:0;animation:axz-pulse 2s infinite;}
-@keyframes axz-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,200,150,.5)}50%{opacity:.7;box-shadow:0 0 0 5px rgba(0,200,150,0)}}
-.axz-drawer{position:fixed;bottom:0;left:0;right:0;height:300px;background:var(--bg1);border-top:2px solid #1e3a5a;z-index:400;transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.5);}
-.axz-drawer.open{transform:translateY(0);}
-.axz-drawer-head{display:flex;align-items:center;padding:0 14px;height:36px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,rgba(9,23,40,.9),var(--bg2) 60%);flex-shrink:0;gap:10px;}
-.axz-drawer-title{font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:.8px;}
-.axz-drawer-status{font-size:9px;color:var(--text3);display:flex;align-items:center;gap:5px;}
-.axz-drawer-close{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 2px;line-height:1;}
-.axz-drawer-close:hover{color:var(--text);}
-.axz-drawer-body{display:grid;grid-template-columns:210px 1fr 250px;flex:1;overflow:hidden;}
-.axz-col{border-right:1px solid var(--border);overflow-y:auto;padding:10px 12px;}
-.axz-col:last-child{border-right:none;}
-.axz-col-title{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
-.axz-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
-.axz-stat{background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:6px 8px;}
-.axz-stat-l{font-size:8px;color:var(--text3);margin-bottom:2px;}
-.axz-stat-v{font-size:13px;font-weight:700;color:var(--text);}
-.axz-trade-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(30,42,58,.6);font-size:9px;}
-.axz-trade-row:last-child{border-bottom:none;}
-.axz-badge{padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700;flex-shrink:0;}
-.axz-badge.l{background:rgba(0,200,150,.15);color:var(--green);}
-.axz-badge.s{background:rgba(255,68,102,.15);color:var(--red);}
-.axz-connecting{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:10px;gap:6px;text-align:center;}
-.axz-delay-note{font-size:8px;color:var(--text3);text-align:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -286,9 +258,6 @@ canvas{position:absolute;top:0;left:0;}
   </div>
   <span class="lev-badge" id="levBadge">20×</span>
   <button class="dep-btn" onclick="openDep()">＋ Депозит</button>
-  <button class="axz-btn" id="axzBtn" onclick="toggleAxzDrawer()">
-    <span class="axz-dot"></span>AXONIZE
-  </button>
   <button class="axz-btn" id="axzBtn" onclick="toggleAxzDrawer()">
     <span class="axz-dot"></span>AXONIZE
   </button>
@@ -595,52 +564,6 @@ canvas{position:absolute;top:0;left:0;}
   </div>
 </div>
 
-<!-- AXONIZE CHANNEL DRAWER -->
-<div class="axz-drawer" id="axzDrawer">
-  <div class="axz-drawer-head">
-    <span class="axz-drawer-title">◈ AXONIZE CHANNEL</span>
-    <div class="axz-drawer-status">
-      <span style="width:5px;height:5px;border-radius:50%;background:#00c896;display:inline-block;animation:axz-pulse 2s infinite;flex-shrink:0;"></span>
-      <span id="axzStatus">Ожидание broadcast...</span>
-      <span style="color:var(--border2)">·</span>
-      <span>Задержка 5–10 мин</span>
-    </div>
-    <button class="axz-drawer-close" onclick="toggleAxzDrawer()">×</button>
-  </div>
-  <div class="axz-drawer-body">
-    <div class="axz-col">
-      <div class="axz-col-title">Статистика AXONIZE</div>
-      <div class="axz-stat-grid">
-        <div class="axz-stat"><div class="axz-stat-l">Баланс</div><div class="axz-stat-v" id="axzBalance" style="color:var(--green)">—</div></div>
-        <div class="axz-stat"><div class="axz-stat-l">P&amp;L сегодня</div><div class="axz-stat-v" id="axzPnlDay">—</div></div>
-        <div class="axz-stat"><div class="axz-stat-l">Win Rate</div><div class="axz-stat-v" id="axzWinRate" style="color:var(--cyan)">—</div></div>
-        <div class="axz-stat"><div class="axz-stat-l">Сделок</div><div class="axz-stat-v" id="axzTradesCount">—</div></div>
-        <div class="axz-stat"><div class="axz-stat-l">Sharpe</div><div class="axz-stat-v" id="axzSharpe" style="color:var(--yellow)">—</div></div>
-        <div class="axz-stat"><div class="axz-stat-l">Max DD</div><div class="axz-stat-v" id="axzDD" style="color:var(--red)">—</div></div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
-        <div class="axz-stat"><div class="axz-stat-l">P&amp;L за неделю</div><div class="axz-stat-v" id="axzPnlWeek">—</div></div>
-        <div class="axz-stat"><div class="axz-stat-l">P&amp;L за всё время</div><div class="axz-stat-v" id="axzPnlTotal">—</div></div>
-      </div>
-    </div>
-    <div class="axz-col" style="display:flex;flex-direction:column;gap:6px;">
-      <div class="axz-col-title">Кривая эквити</div>
-      <div style="flex:1;position:relative;"><canvas id="axzEquityC" style="position:absolute;inset:0;"></canvas></div>
-      <div class="axz-delay-note">Данные с задержкой 5–10 мин · защита торговой логики Brain</div>
-    </div>
-    <div class="axz-col">
-      <div class="axz-col-title">История закрытых сделок</div>
-      <div id="axzTradesList">
-        <div class="axz-connecting">
-          <span style="font-size:22px;opacity:.4">◈</span>
-          <span>Broadcast не подключён</span>
-          <span style="color:var(--accent);font-size:9px">bingx-proxy.duckdns.org</span>
-          <span style="font-size:8px;color:var(--text3)">Сделки появятся после запуска<br>Торгового сервера</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
 'use strict';
@@ -914,7 +837,7 @@ async function fetchOB(){
   if(_obFetching)return;_obFetching=true;
   const sym=curSym,enc=encodeURIComponent;
   const fastFetch=async url=>{try{const r=await fetch(REST_PROXY+enc(url),{signal:AbortSignal.timeout(2000)});if(!r.ok)return null;const j=await r.json();const d=j.data||j;const asks=(d.asks||d.sell||[]).map(x=>Array.isArray(x)?[+x[0],+x[1]]:[+(x.price||x[0]),+(x.qty||x[1])]);const bids=(d.bids||d.buy||[]).map(x=>Array.isArray(x)?[+x[0],+x[1]]:[+(x.price||x[0]),+(x.qty||x[1])]);if(asks.length&&bids.length)return{asks,bids};}catch(_){}return null;};
-  const[spotData,futData]=await Promise.all([fastFetch(`https://open-api.bingx.com/openApi/spot/v2/market/depth?symbol=${sym}&depth=100`),fastFetch(`https://open-api.bingx.com/openApi/swap/v2/quote/depth?symbol=${sym}&limit=100`)]);
+  const[spotData,futData]=await Promise.all([fastFetch(`https://open-api.bingx.com/openApi/spot/v2/market/depth?symbol=${sym}&depth=1000`),fastFetch(`https://open-api.bingx.com/openApi/swap/v2/quote/depth?symbol=${sym}&limit=1000`)]);
   if(sym!==curSym){_obFetching=false;return;}
   if(spotData){ST.spot.asks=spotData.asks;ST.spot.bids=spotData.bids;}
   if(futData){ST.fut.asks=futData.asks;ST.fut.bids=futData.bids;}
