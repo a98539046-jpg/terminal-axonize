@@ -774,35 +774,6 @@ function drawChart(){
   if(showLiq&&liqLevels.length){const usedY=[];[...liqLevels].sort((a,b)=>b.s-a.s).forEach(lv=>{if(lv.p<mn||lv.p>mx)return;const y=toY(lv.p),col=lv.tier==='high'?'rgba(255,215,0,.95)':lv.tier==='mid'?'rgba(255,155,0,.75)':'rgba(255,80,0,.45)',lw=lv.tier==='high'?1.5:lv.tier==='mid'?1:.55;ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.setLineDash(lv.tier==='high'?[]:[6,4]);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();ctx.setLineDash([]);ctx.restore();});}
   drawLevelsOnChart();
   drawOBHeatmap();
-  // Зоны H7d / L7d — подсветка стоп-зон как в оригинале
-  if(showLiq){
-    const cs7=ST[mkt].candles[tf];
-    if(cs7&&cs7.length>=2){
-      const perWeek7=Math.round(604800000/TF_MS[tf]);
-      const week7=cs7.slice(-Math.min(perWeek7,cs7.length));
-      const h7=Math.max(...week7.map(c=>c.h));
-      const l7=Math.min(...week7.map(c=>c.l));
-      const bw7=h7*0.004; // ширина зоны ~0.4%
-      ctx.save();
-      // Зона H7d — красная (стопы шортов над сопротивлением)
-      if(h7>mn&&h7-bw7<mx){
-        const yT7=Math.max(toY(h7+bw7),pad.t),yB7=Math.min(toY(h7-bw7),pad.t+cH);
-        ctx.fillStyle='rgba(255,68,102,0.18)';
-        ctx.fillRect(pad.l,yT7,cW,yB7-yT7);
-        ctx.strokeStyle='rgba(255,68,102,0.7)';ctx.lineWidth=1.5;ctx.setLineDash([]);
-        ctx.beginPath();ctx.moveTo(pad.l,toY(h7));ctx.lineTo(pad.l+cW,toY(h7));ctx.stroke();
-      }
-      // Зона L7d — зелёная (стопы лонгов под поддержкой)
-      if(l7<mx&&l7+bw7>mn){
-        const yT7=Math.max(toY(l7+bw7),pad.t),yB7=Math.min(toY(l7-bw7),pad.t+cH);
-        ctx.fillStyle='rgba(0,200,150,0.18)';
-        ctx.fillRect(pad.l,yT7,cW,yB7-yT7);
-        ctx.strokeStyle='rgba(0,200,150,0.7)';ctx.lineWidth=1.5;ctx.setLineDash([]);
-        ctx.beginPath();ctx.moveTo(pad.l,toY(l7));ctx.lineTo(pad.l+cW,toY(l7));ctx.stroke();
-      }
-      ctx.restore();
-    }
-  }
   vis.forEach((c,i)=>{const x=toX(i),up=c.c>=c.o,col=up?'#00c896':'#ff4466';const bT=toY(Math.max(c.o,c.c)),bB=toY(Math.min(c.o,c.c)),bH=Math.max(1,bB-bT),bW=Math.max(1,cw*.72);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,toY(c.h));ctx.lineTo(x,bT);ctx.stroke();ctx.beginPath();ctx.moveTo(x,bB);ctx.lineTo(x,toY(c.l));ctx.stroke();ctx.fillStyle=col;ctx.fillRect(x-bW/2,bT,bW,bH);});
   drawOrderBookWalls();drawUserObjects();if(showStop)drawStopLines();if(positionDrawings.length)drawPositions();
   if(curP){const py=toY(curP),up=curP>=(ST[mkt].prevP||curP);ctx.strokeStyle=up?'#00c896':'#ff4466';ctx.lineWidth=.8;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(W-pad.r,py);ctx.stroke();ctx.setLineDash([]);const lb=document.getElementById('pLabel');lb.style.top=(py-9)+'px';lb.style.background=up?'#00c896':'#ff4466';lb.style.color=up?'#000':'#fff';lb.textContent=fmtP(curP);}
