@@ -1,0 +1,9 @@
+{
+  "id": "184959G",
+  "name": "184959G",
+  "active": false,
+  "max_positions": 5,
+  "risk_per_trade": 0.02,
+  "max_daily_drawdown": 0.05,
+  "terminal_url": "http://localhost:8080"
+}
