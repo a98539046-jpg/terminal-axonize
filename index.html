@@ -1089,7 +1089,8 @@ function drawOrderBookWalls(){
     const bot=wall[0];
     const top=wi+1<f.length?f[wi+1][0]:wall[0]*(1+.001);
     const minH=wall[0]*.001;
-    return{bot,top:Math.max(top,bot+minH),qty:wall[1]};
+    const maxH=wall[0]*.003; // максимальная высота зоны ~0.3%
+    return{bot,top:Math.min(Math.max(top,bot+minH),bot+maxH),qty:wall[1]};
   }
   function getBigWallBelow(arr, maxP){
     if(!arr||!arr.length) return null;
@@ -1100,7 +1101,8 @@ function drawOrderBookWalls(){
     const top=wall[0];
     const bot=wi+1<f.length?f[wi+1][0]:wall[0]*(1-.001);
     const minH=wall[0]*.001;
-    return{bot:Math.min(bot,top-minH),top,qty:wall[1]};
+    const maxH=wall[0]*.003; // максимальная высота зоны ~0.3%
+    return{bot:Math.max(Math.min(bot,top-minH),top-maxH),top,qty:wall[1]};
   }
 
   // Ищем выше H7d (если нет — выше цены)
@@ -1144,16 +1146,18 @@ function drawOrderBookWalls(){
 
     ctx.save();
     if(isAsk){
-      ctx.fillStyle=isSpot?'rgba(255,68,102,0.15)':'rgba(255,68,102,0.35)';
+      // Спот — светло-красный, Фьюч — насыщенный красный
+      ctx.fillStyle=isSpot?'rgba(255,100,130,0.12)':'rgba(255,30,70,0.40)';
       ctx.fillRect(xFrom,y1,rectW,rh);
-      ctx.strokeStyle=isSpot?'rgba(255,68,102,0.5)':'rgba(255,68,102,0.95)';
-      ctx.lineWidth=isSpot?1:2; ctx.setLineDash([]);
+      ctx.strokeStyle=isSpot?'rgba(255,100,130,0.55)':'rgba(255,30,70,1)';
+      ctx.lineWidth=isSpot?1:2.5; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(xFrom,y2); ctx.lineTo(xTo,y2); ctx.stroke();
     } else {
-      ctx.fillStyle=isSpot?'rgba(0,200,150,0.15)':'rgba(0,200,150,0.35)';
+      // Спот — светло-зелёный, Фьюч — насыщенный зелёный
+      ctx.fillStyle=isSpot?'rgba(0,220,160,0.12)':'rgba(0,180,100,0.40)';
       ctx.fillRect(xFrom,y1,rectW,rh);
-      ctx.strokeStyle=isSpot?'rgba(0,200,150,0.5)':'rgba(0,200,150,0.95)';
-      ctx.lineWidth=isSpot?1:2; ctx.setLineDash([]);
+      ctx.strokeStyle=isSpot?'rgba(0,220,160,0.55)':'rgba(0,180,100,1)';
+      ctx.lineWidth=isSpot?1:2.5; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(xFrom,y1); ctx.lineTo(xTo,y1); ctx.stroke();
     }
     if(rh>12){
@@ -1165,23 +1169,23 @@ function drawOrderBookWalls(){
     ctx.restore();
   }
 
-  // Разделитель по центру
+  // Разделитель СПОТ | ФЬЮЧ по центру
   ctx.save();
-  ctx.strokeStyle='rgba(255,255,255,0.1)';
-  ctx.lineWidth=1; ctx.setLineDash([2,5]);
+  ctx.strokeStyle='rgba(255,255,255,0.25)';
+  ctx.lineWidth=1; ctx.setLineDash([3,4]);
   ctx.beginPath(); ctx.moveTo(xMid,pad.t); ctx.lineTo(xMid,pad.t+cH); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.font='7px JetBrains Mono,monospace'; ctx.textAlign='center';
-  ctx.fillStyle='rgba(255,255,255,0.15)';
-  ctx.fillText('СПОТ',pad.l+cW/4,pad.t+9);
-  ctx.fillText('ФЬЮЧ',xMid+cW/4,pad.t+9);
+  ctx.font='bold 8px JetBrains Mono,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,255,255,0.25)';
+  ctx.fillText('СПОТ', pad.l+cW/4, pad.t+10);
+  ctx.fillText('ФЬЮЧ', xMid+cW/4, pad.t+10);
   ctx.restore();
 
-  // Рисуем — левая половина светлее (спот), правая темнее (фьюч)
-  drawHalfWall(ask, pad.l, xMid, true, true);   // Ask спот слева
-  drawHalfWall(ask, xMid,  xEnd, true, false);   // Ask фьюч справа
-  drawHalfWall(bid, pad.l, xMid, false, true);   // Bid спот слева
-  drawHalfWall(bid, xMid,  xEnd, false, false);  // Bid фьюч справа
+  // Левая = СПОТ (светлее), правая = ФЬЮЧ (темнее/насыщеннее)
+  drawHalfWall(ask, pad.l, xMid, true,  true);   // Ask спот
+  drawHalfWall(ask, xMid,  xEnd, true,  false);  // Ask фьюч
+  drawHalfWall(bid, pad.l, xMid, false, true);   // Bid спот
+  drawHalfWall(bid, xMid,  xEnd, false, false);  // Bid фьюч
 }
 
 
