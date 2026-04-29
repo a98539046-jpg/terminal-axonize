@@ -1534,6 +1534,29 @@ function axzDrawEquity(){
   c2.font='bold 8px JetBrains Mono,monospace';c2.textAlign='right';c2.fillStyle=isPos?'#00c896':'#ff4466';c2.fillText('$'+fmtN(mxV,0),W-pad.r-2,pad.t+10);c2.fillStyle=isLightTheme?'#8a96a8':'#4a5a7a';c2.fillText('$'+fmtN(mnV,0),W-pad.r-2,H-pad.b-2);
 }
 window.addEventListener('resize',()=>{if(axzOpen)setTimeout(axzDrawEquity,50);});
+
+// ═══════════════════════════════════════════
+// AXONIZE Config — загрузка 184959G.json
+// ═══════════════════════════════════════════
+let axzConfig = null;
+
+async function loadAxzConfig(){
+  try{
+    const res = await fetch('./184959G.json');
+    if(!res.ok) return;
+    axzConfig = await res.json();
+    console.log('[AXONIZE Config] Загружен:', axzConfig);
+    // Заменяем localhost на реальный прокси
+    if(axzConfig.terminal_url && axzConfig.terminal_url.includes('localhost')){
+      axzConfig.terminal_url = 'https://bingx-proxy.duckdns.org';
+    }
+    // Конфиг используется только внутренне для подключения к серверу
+  } catch(e){
+    console.log('[AXONIZE Config] Файл не найден');
+  }
+}
+
+loadAxzConfig();
 </script>
 </body>
 </html>
