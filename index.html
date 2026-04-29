@@ -1541,19 +1541,15 @@ window.addEventListener('resize',()=>{if(axzOpen)setTimeout(axzDrawEquity,50);})
 let axzConfig = null;
 
 async function loadAxzConfig(){
-  try{
-    const res = await fetch('./184959G.json');
-    if(!res.ok) return;
-    axzConfig = await res.json();
-    console.log('[AXONIZE Config] Загружен:', axzConfig);
-    // Заменяем localhost на реальный прокси
-    if(axzConfig.terminal_url && axzConfig.terminal_url.includes('localhost')){
-      axzConfig.terminal_url = 'https://bingx-proxy.duckdns.org';
-    }
-    // Конфиг используется только внутренне для подключения к серверу
-  } catch(e){
-    console.log('[AXONIZE Config] Файл не найден');
-  }
+  // Конфиг вшит в код — файл не нужен
+  axzConfig = {
+    id: '184959G',
+    active: false,
+    max_positions: 5,
+    risk_per_trade: 0.02,
+    max_daily_drawdown: 0.05,
+    terminal_url: 'https://bingx-proxy.duckdns.org'
+  };
 }
 
 loadAxzConfig();
