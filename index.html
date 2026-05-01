@@ -989,24 +989,20 @@ function drawStopLines(){
     const tw=ctx.measureText(txt).width,bw=tw+8,bh=14,bx=W-pad.r-bw-3;
     ctx.fillStyle=col; ctx.fillRect(bx,y-bh/2,bw,bh);
     ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.fillText(txt,bx+4,y+4);
-    // тег справа
     ctx.fillStyle=col; ctx.fillRect(W-pad.r+1,y-7,bw+2,13);
     ctx.fillStyle='#000'; ctx.font='bold 7px JetBrains Mono,monospace';
     ctx.fillText(label,W-pad.r+4,y+3);
   };
   if(sl) drawLine(sl,'#ff4466','SL');
   if(tp) drawLine(tp,'#00c896','TP');
-  // подсветка зоны между SL и TP
   if(sl&&tp){
     const y1=clamp(toY(Math.max(sl,tp))),y2=clamp(toY(Math.min(sl,tp)));
-    const entry=curP||71000;
     const isLong=tp>sl;
     ctx.fillStyle=isLong?'rgba(0,200,150,0.06)':'rgba(255,68,102,0.06)';
     ctx.fillRect(pad.l,y1,W-pad.r-pad.l,y2-y1);
   }
   ctx.restore();
 }
-
 
 function drawOBHeatmap(){
   if(!CM.rng||!showLiq||!bigWalls.length) return;
@@ -1043,12 +1039,9 @@ function drawOrderBookWalls(){
   const{pad,cW,toY,cH,mn,mx}=CM;
   const p=curP; if(!p) return;
   const cs=ST[mkt].candles[tf]; if(!cs||cs.length<2) return;
-
   const week=cs.slice(-Math.min(Math.round(604800000/TF_MS[tf]),cs.length));
   const h7d=Math.max(...week.map(c=>c.h));
   const l7d=Math.min(...week.map(c=>c.l));
-
-  // Объём крупнейшей Ask выше h7d и Bid ниже l7d — для подписи
   const allAsks=[...ST.spot.asks,...ST.fut.asks];
   const allBids=[...ST.spot.bids,...ST.fut.bids];
   const askAbove=allAsks.filter(r=>r[0]>h7d);
@@ -1056,15 +1049,11 @@ function drawOrderBookWalls(){
   const askVol=askAbove.length?askAbove.reduce((a,b)=>b[1]>a[1]?b:a)[1]:0;
   const bidVol=bidBelow.length?bidBelow.reduce((a,b)=>b[1]>a[1]?b:a)[1]:0;
   const fmtV=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(1)+'K':v>0?v.toFixed(1):'';
-
   const xMid=pad.l+cW/2;
   const xEnd=pad.l+cW;
-
   function drawZone(price, isAsk){
     const col=isAsk?'rgba(255,68,102,':'rgba(0,200,150,';
     const y=toY(price);
-
-    // Если уровень вне экрана — стрелка
     if(y<pad.t-2||y>pad.t+cH+2){
       const above=price>mx;
       const ey=above?pad.t+18:pad.t+cH-6;
@@ -1073,12 +1062,10 @@ function drawOrderBookWalls(){
       ctx.save();
       ctx.font='bold 8px JetBrains Mono,monospace';
       const tw=ctx.measureText(txt).width+10;
-      // Спот слева
       ctx.fillStyle=col+'0.6)';
       ctx.fillRect(pad.l+cW/4-tw/2,ey-9,tw,14);
       ctx.fillStyle='#fff';ctx.textAlign='left';
       ctx.fillText(txt,pad.l+cW/4-tw/2+5,ey+2);
-      // Фьюч справа
       ctx.fillStyle=col+'0.85)';
       ctx.fillRect(xMid+cW/4-tw/2,ey-9,tw,14);
       ctx.fillStyle='#fff';
@@ -1086,145 +1073,40 @@ function drawOrderBookWalls(){
       ctx.restore();
       return;
     }
-
     const yLine=Math.max(Math.min(y,pad.t+cH),pad.t);
     const vol=isAsk?fmtV(askVol):fmtV(bidVol);
-    // Высота зоны НАД или ПОД уровнем
     const zoneH=12;
-
     ctx.save();
-
-    // Левая половина (СПОТ) — светлее
     ctx.fillStyle=col+'0.18)';
-    if(isAsk){
-      // НАД H7d: заливка выше линии
-      ctx.fillRect(pad.l,yLine-zoneH,cW/2,zoneH);
-    } else {
-      // ПОД L7d: заливка ниже линии
-      ctx.fillRect(pad.l,yLine,cW/2,zoneH);
-    }
+    if(isAsk){ctx.fillRect(pad.l,yLine-zoneH,cW/2,zoneH);}
+    else{ctx.fillRect(pad.l,yLine,cW/2,zoneH);}
     ctx.strokeStyle=col+'0.65)';
     ctx.lineWidth=1;ctx.setLineDash([]);
     ctx.beginPath();ctx.moveTo(pad.l,yLine);ctx.lineTo(xMid,yLine);ctx.stroke();
-
-    // Правая половина (ФЬЮЧ) — насыщеннее
     ctx.fillStyle=col+'0.42)';
-    if(isAsk){
-      ctx.fillRect(xMid,yLine-zoneH,cW/2,zoneH);
-    } else {
-      ctx.fillRect(xMid,yLine,cW/2,zoneH);
-    }
+    if(isAsk){ctx.fillRect(xMid,yLine-zoneH,cW/2,zoneH);}
+    else{ctx.fillRect(xMid,yLine,cW/2,zoneH);}
     ctx.strokeStyle=col+'1)';
     ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(xMid,yLine);ctx.lineTo(xEnd,yLine);ctx.stroke();
-
-    // Разделитель
     ctx.strokeStyle='rgba(255,255,255,0.15)';
     ctx.lineWidth=1;ctx.setLineDash([2,4]);
     ctx.beginPath();ctx.moveTo(xMid,pad.t);ctx.lineTo(xMid,pad.t+cH);ctx.stroke();
     ctx.setLineDash([]);
-
-    // Подписи
     ctx.font='7px JetBrains Mono,monospace';ctx.textAlign='center';
     ctx.fillStyle='rgba(255,255,255,0.2)';
     ctx.fillText('СПОТ',pad.l+cW/4,pad.t+9);
     ctx.fillText('ФЬЮЧ',xMid+cW/4,pad.t+9);
-
-    // Объём
     if(vol){
       ctx.font='bold 8px JetBrains Mono,monospace';
       ctx.fillStyle=col+'0.9)';
       ctx.textAlign='right';
       ctx.fillText(vol,xEnd-4,isAsk?yLine-5:yLine+11);
     }
-
     ctx.restore();
   }
-
-  drawZone(h7d, true);  // красная полоса НАД H7d
-  drawZone(l7d, false); // зелёная полоса ПОД L7d
-}
-
-
-function drawUserObjects(){
-  if(!CM||!CM.rng) return;
-  ctx.save();
-  userDrawings.forEach((d,di)=>{
-    const col=d.color||'#e2eaf8';
-    ctx.strokeStyle=col; ctx.fillStyle=col;
-    if(d.type==='trend'||d.type==='arrow'){
-      if(d.pts.length<2) return;
-      const x1=chartToScreenX(d.pts[0]),y1=chartToScreenY(d.pts[0]),x2=chartToScreenX(d.pts[1]),y2=chartToScreenY(d.pts[1]);
-      ctx.lineWidth=1.5; ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-      if(d.type==='arrow'){
-        const angle=Math.atan2(y2-y1,x2-x1), al=10, aw=5;
-        ctx.beginPath(); ctx.moveTo(x2,y2);
-        ctx.lineTo(x2-al*Math.cos(angle-aw*0.15),y2-al*Math.sin(angle-aw*0.15));
-        ctx.lineTo(x2-al*Math.cos(angle+aw*0.15),y2-al*Math.sin(angle+aw*0.15));
-        ctx.closePath(); ctx.fill();
-      }
-      drawDelBtn(x1-8,y1-8,di);
-    }
-    else if(d.type==='fib'){
-      if(d.pts.length<2) return;
-      const x1=chartToScreenX(d.pts[0]),y1=chartToScreenY(d.pts[0]),x2=chartToScreenX(d.pts[1]),y2=chartToScreenY(d.pts[1]);
-      const pHigh=Math.max(d.pts[0].price,d.pts[1].price),pLow=Math.min(d.pts[0].price,d.pts[1].price),diff=pHigh-pLow;
-      const levels=[0,0.236,0.382,0.5,0.618,0.786,1];
-      const colors=['#ff4466','#f5a623','#00c896','#3b82f6','#00c896','#f5a623','#ff4466'];
-      levels.forEach((lvl,li)=>{
-        const price=pHigh-diff*lvl, y=CM.toY(price);
-        if(y<CM.pad.t||y>CM.pad.t+CM.cH) return;
-        ctx.strokeStyle=colors[li]; ctx.lineWidth=1; ctx.setLineDash([4,3]);
-        ctx.beginPath(); ctx.moveTo(CM.pad.l,y); ctx.lineTo(CM.W-CM.pad.r,y); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.font='bold 8px JetBrains Mono,monospace'; ctx.fillStyle=colors[li]; ctx.textAlign='left';
-        ctx.fillText((lvl*100).toFixed(1)+'%  '+fmtP(price),CM.pad.l+3,y-3);
-      });
-      ctx.strokeStyle='rgba(200,212,232,0.15)'; ctx.lineWidth=1; ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(x1,CM.pad.t); ctx.lineTo(x1,CM.pad.t+CM.cH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x2,CM.pad.t); ctx.lineTo(x2,CM.pad.t+CM.cH); ctx.stroke();
-      drawDelBtn(x1-8,CM.pad.t+4,di);
-    }
-    else if(d.type==='ruler'){
-      if(d.pts.length<2) return;
-      const x1=chartToScreenX(d.pts[0]),y1=chartToScreenY(d.pts[0]),x2=chartToScreenX(d.pts[1]),y2=chartToScreenY(d.pts[1]);
-      ctx.strokeStyle='#f5a623'; ctx.lineWidth=1.5; ctx.setLineDash([6,3]);
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-      ctx.setLineDash([]); ctx.lineWidth=1;
-      [0,1].forEach(i=>{ const x=i?x2:x1,y=i?y2:y1; ctx.beginPath(); ctx.moveTo(x,y-6); ctx.lineTo(x,y+6); ctx.stroke(); });
-      const pDiff=d.pts[1].price-d.pts[0].price,pPct=(pDiff/d.pts[0].price*100),bars=Math.abs(d.pts[1].barIdx-d.pts[0].barIdx);
-      const mx2=(x1+x2)/2,my2=(y1+y2)/2,sign=pDiff>=0?'+':'';
-      ctx.font='bold 9px JetBrains Mono,monospace'; ctx.fillStyle='#f5a623'; ctx.textAlign='center';
-      ctx.fillText(`${sign}${fmtP(pDiff)} (${sign}${pPct.toFixed(2)}%)`,mx2,my2-10);
-      ctx.font='8px JetBrains Mono,monospace'; ctx.fillStyle='rgba(245,166,35,0.7)';
-      ctx.fillText(`${bars} баров`,mx2,my2+8);
-      drawDelBtn(x1-8,y1-8,di);
-    }
-    else if(d.type==='path'){
-      if(d.pts.length<2) return;
-      ctx.strokeStyle='#06b6d4'; ctx.lineWidth=1.5; ctx.setLineDash([]);
-      ctx.beginPath();
-      d.pts.forEach((pt,i)=>{ const x=chartToScreenX(pt),y=chartToScreenY(pt); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); ctx.fillStyle='#06b6d4'; ctx.fillRect(x-2,y-2,4,4); });
-      ctx.stroke();
-      drawDelBtn(chartToScreenX(d.pts[0])-8,chartToScreenY(d.pts[0])-8,di);
-    }
-    else if(d.type==='brush'){
-      if(!d.pts||d.pts.length<2) return;
-      ctx.strokeStyle=d.color||'rgba(200,100,255,0.7)'; ctx.lineWidth=d.width||2;
-      ctx.lineCap='round'; ctx.lineJoin='round'; ctx.setLineDash([]);
-      ctx.beginPath();
-      d.pts.forEach((pt,i)=>{ const x=chartToScreenX(pt),y=chartToScreenY(pt); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
-      ctx.stroke();
-    }
-  });
-  if(brushPts.length>=2&&activeTool==='brush'){
-    ctx.strokeStyle='rgba(200,100,255,0.7)'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.setLineDash([]);
-    ctx.beginPath();
-    brushPts.forEach((pt,i)=>{ i===0?ctx.moveTo(pt.x,pt.y):ctx.lineTo(pt.x,pt.y); });
-    ctx.stroke();
-  }
-  ctx.restore();
+  drawZone(h7d, true);
+  drawZone(l7d, false);
 }
 
 function drawDelBtn(x,y,idx){
@@ -1260,12 +1142,6 @@ function drawPreview(mx,my){
     const pDiff=price2-drawStart.price,pPct=(pDiff/drawStart.price*100),sign=pDiff>=0?'+':'';
     octx.setLineDash([]); octx.font='bold 9px JetBrains Mono,monospace'; octx.fillStyle='#f5a623'; octx.textAlign='center';
     octx.fillText(`${sign}${fmtP(pDiff)} (${sign}${pPct.toFixed(2)}%)`,(x1+x2)/2,(y1+y2)/2-8);
-  } else if(activeTool==='path'){
-    if(drawStart._pathPts&&drawStart._pathPts.length>0){
-      const last=drawStart._pathPts[drawStart._pathPts.length-1];
-      octx.strokeStyle='rgba(6,182,212,0.6)'; octx.lineWidth=1.5;
-      octx.beginPath(); octx.moveTo(chartToScreenX(last),chartToScreenY(last)); octx.lineTo(x2,y2); octx.stroke();
-    }
   }
   octx.restore();
 }
@@ -1421,8 +1297,6 @@ function filterSyms(q){const picker=document.getElementById('symPicker');const f
 function symSearchKey(e){if(e.key==='Escape')closeSymSearch();if(e.key==='Enter'){const q=e.target.value.trim();const found=SYMBOLS.find(s=>s.label.toLowerCase().includes(q.toLowerCase())||s.sym.toLowerCase().includes(q.toLowerCase()));if(found){setSym(found.sym,found.label);closeSymSearch();}}}
 document.addEventListener('click',e=>{const wrap=document.getElementById('symSearchWrap'),btn=document.getElementById('symPickerBtn'),picker=document.getElementById('symPicker');if(wrap&&wrap.style.display!=='none'){if(!wrap.contains(e.target)&&!picker.contains(e.target)&&!btn.contains(e.target))closeSymSearch();}});
 
-
-
 function hitTestLine(my,price){if(!CM||!CM.toY||!CM.pad)return false;const y=CM.toY(price);if(y>=CM.pad.t&&y<=CM.pad.t+CM.cH)return Math.abs(my-y)<10;if(y<CM.pad.t)return Math.abs(my-(CM.pad.t+14))<10;if(y>CM.pad.t+CM.cH)return Math.abs(my-(CM.pad.t+CM.cH-14))<10;return false;}
 
 mainC.addEventListener('mousemove',e=>{if(!positionDrawings.length||!CM.rng)return;const r=mainC.getBoundingClientRect(),my=e.clientY-r.top;if(dragTarget){const price=CM.mx-CM.rng*(my-CM.pad.t)/CM.cH;const pos=positionDrawings[dragPosIdx];if(pos&&price>0){if(dragTarget==='tp')pos.tp=price;if(dragTarget==='sl')pos.sl=price;schedDraw();const at=document.querySelector('.bp-tab.active');if(at)setBP(at,'pos');}return;}let onLine=false;positionDrawings.forEach(pos=>{if(hitTestLine(my,pos.tp)||hitTestLine(my,pos.sl))onLine=true;});mainC.style.cursor=onLine?'ns-resize':(activeTool==='cursor'?'grab':'crosshair');});
@@ -1469,7 +1343,16 @@ document.addEventListener('contextmenu',e=>{if(e.target!==mainC)ctxMenu.style.di
 // ═══════════════════════════════════════════
 // AXONIZE CHANNEL — Broadcast задержка 5–10 мин
 // ═══════════════════════════════════════════
+
+// ── ПАТЧ 1: Восстанавливаем историю сделок из localStorage при загрузке страницы ──
 let axzOpen=false,axzWs=null,axzTradesData=[],axzEquityData=[];
+(function(){
+  try{
+    const saved=localStorage.getItem('axz_trades');
+    if(saved){const p=JSON.parse(saved);if(p&&p.length)axzTradesData=p;}
+  }catch(_){}
+})();
+
 const AXZ_WS='wss://bingx-proxy.duckdns.org/ws/stream';
 
 function axzDelay(){return(Math.floor(Math.random()*(600-300+1))+300)*1000;}
@@ -1478,16 +1361,49 @@ function toggleAxzDrawer(){
   axzOpen=!axzOpen;
   document.getElementById('axzDrawer').classList.toggle('open',axzOpen);
   document.getElementById('axzBtn').classList.toggle('open',axzOpen);
-  if(axzOpen){setTimeout(()=>axzDrawEquity(),150);}
+  if(axzOpen){
+    // Если есть сохранённые сделки — сразу показать
+    if(axzTradesData.length)axzRenderTrades();
+    setTimeout(()=>axzDrawEquity(),150);
+  }
 }
 
 function axzConnectBroadcast(){
   if(axzWs&&(axzWs.readyState===WebSocket.OPEN||axzWs.readyState===WebSocket.CONNECTING))return;
   try{
     axzWs=new WebSocket(AXZ_WS);
-    axzWs.onopen=()=>{const el=document.getElementById('axzStatus');el.textContent='● Broadcast подключён';el.style.color='var(--green)';};
-    axzWs.onmessage=e=>{try{const msg=JSON.parse(e.data);setTimeout(()=>axzHandleEvent(msg),axzDelay());}catch(_){}};
-    axzWs.onclose=()=>{const el=document.getElementById('axzStatus');el.textContent='Переподключение...';el.style.color='var(--text3)';if(axzOpen)setTimeout(axzConnectBroadcast,5000);};
+
+    // ── ПАТЧ 2: onopen — показываем историю или статус "ожидание" ──
+    axzWs.onopen=()=>{
+      const el=document.getElementById('axzStatus');
+      el.textContent='● Broadcast подключён';
+      el.style.color='var(--green)';
+      if(axzTradesData.length){
+        // Есть сохранённые сделки — отображаем их
+        axzRenderTrades();
+        return;
+      }
+      // Нет сделок — убираем старую заглушку, показываем "ожидание"
+      document.getElementById('axzTradesList').innerHTML=
+        '<div class="axz-connecting"><span style="font-size:22px;opacity:.4">◈</span><span style="color:var(--green)">Подключено</span><span style="font-size:8px;color:var(--text3)">Ожидание закрытых сделок...</span></div>';
+    };
+
+    axzWs.onmessage=e=>{
+      try{const msg=JSON.parse(e.data);setTimeout(()=>axzHandleEvent(msg),axzDelay());}catch(_){}
+    };
+
+    // ── ПАТЧ 3: onclose — заглушку только если нет данных ──
+    axzWs.onclose=()=>{
+      const el=document.getElementById('axzStatus');
+      el.textContent='Переподключение...';
+      el.style.color='var(--text3)';
+      if(!axzTradesData.length){
+        document.getElementById('axzTradesList').innerHTML=
+          '<div class="axz-connecting"><span style="font-size:22px;opacity:.4">◈</span><span>Broadcast не подключён</span><span style="color:var(--accent);font-size:9px">bingx-proxy.duckdns.org</span><span style="font-size:8px;color:var(--text3)">Сделки появятся после запуска<br>Торгового сервера</span></div>';
+      }
+      if(axzOpen)setTimeout(axzConnectBroadcast,5000);
+    };
+
     axzWs.onerror=()=>{};
   }catch(_){}
 }
@@ -1495,7 +1411,15 @@ function axzConnectBroadcast(){
 function axzHandleEvent(msg){
   if(!msg||!msg.event)return;
   const g=id=>document.getElementById(id);
-  if(msg.event==='trade.closed'){axzTradesData.unshift(msg);if(axzTradesData.length>50)axzTradesData.pop();axzRenderTrades();}
+
+  // ── ПАТЧ 4: сохраняем каждую новую сделку в localStorage ──
+  if(msg.event==='trade.closed'){
+    axzTradesData.unshift(msg);
+    if(axzTradesData.length>50)axzTradesData.pop();
+    try{localStorage.setItem('axz_trades',JSON.stringify(axzTradesData));}catch(_){}
+    axzRenderTrades();
+  }
+
   if(msg.event==='equity.update'){
     axzEquityData.push({t:Date.now(),v:+msg.total_balance||0});if(axzEquityData.length>200)axzEquityData.shift();axzDrawEquity();
     if(msg.total_balance)g('axzBalance').textContent='$'+fmtN(+msg.total_balance,2);
@@ -1536,12 +1460,10 @@ function axzDrawEquity(){
 window.addEventListener('resize',()=>{if(axzOpen)setTimeout(axzDrawEquity,50);});
 
 // ═══════════════════════════════════════════
-// AXONIZE Config — загрузка 184959G.json
+// AXONIZE Config
 // ═══════════════════════════════════════════
 let axzConfig = null;
-
 async function loadAxzConfig(){
-  // Конфиг вшит в код — файл не нужен
   axzConfig = {
     id: '184959G',
     active: false,
@@ -1551,9 +1473,9 @@ async function loadAxzConfig(){
     terminal_url: 'https://bingx-proxy.duckdns.org'
   };
 }
-
 loadAxzConfig();
-// Broadcast подключается всегда при загрузке
+
+// Broadcast подключается всегда при загрузке страницы
 axzConnectBroadcast();
 </script>
 </body>
