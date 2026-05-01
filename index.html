@@ -1478,7 +1478,7 @@ function toggleAxzDrawer(){
   axzOpen=!axzOpen;
   document.getElementById('axzDrawer').classList.toggle('open',axzOpen);
   document.getElementById('axzBtn').classList.toggle('open',axzOpen);
-  if(axzOpen){axzConnectBroadcast();setTimeout(()=>axzDrawEquity(),150);}
+  if(axzOpen){setTimeout(()=>axzDrawEquity(),150);}
 }
 
 function axzConnectBroadcast(){
@@ -1553,6 +1553,8 @@ async function loadAxzConfig(){
 }
 
 loadAxzConfig();
+// Broadcast подключается всегда при загрузке
+axzConnectBroadcast();
 </script>
 </body>
 </html>
