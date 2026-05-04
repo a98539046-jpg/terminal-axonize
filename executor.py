@@ -32,7 +32,7 @@ EXECUTOR_SECRET = os.getenv("EXECUTOR_SECRET", "").strip()
 BRAIN_URL = os.getenv("BRAIN_URL", "http://localhost:8082").rstrip("/")
 HMAC_SKEW_SECONDS = 300
 
-EXECUTORS_DIR = ROOT_DIR / "исполнители"
+EXECUTORS_DIR = ROOT_DIR / "ispolniteli"
 EXECUTORS_DIR.mkdir(parents=True, exist_ok=True)
 SIGNALS_DIR = ROOT_DIR / "signals"
 SIGNALS_DIR.mkdir(parents=True, exist_ok=True)
