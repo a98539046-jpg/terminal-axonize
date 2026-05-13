@@ -124,13 +124,13 @@ async def _connect_and_stream(symbols: List[str], ping_interval: float):
         ping_interval=None,
         ping_timeout=10,
         close_timeout=5,
-        max_size=2**23,
+        max_size=2**25,
         compression=None
     ) as ws:
         logger.info("WS connected")
         for sub_msg in build_subscribe_msg(symbols):
             await ws.send(json.dumps(sub_msg))
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.1)
         ping_task=asyncio.ensure_future(_ping_loop(ws,ping_interval))
         try:
             async for raw in ws:
