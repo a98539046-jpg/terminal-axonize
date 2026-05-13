@@ -4,7 +4,7 @@ import gzip
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 from collections import deque
 import websockets
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
@@ -47,36 +47,53 @@ def parse_kline(msg):
         symbol=data_type.split("@")[0].replace("-","")
         k=msg.get("data",{})
         if not k: return None
-        return {"symbol":symbol,"timeframe":"1m",
-            "ts":datetime.fromtimestamp(int(k["t"])/1000,tz=timezone.utc),
-            "open":float(k["o"]),"high":float(k["h"]),"low":float(k["l"]),"close":float(k["c"]),
-            "volume":float(k["v"]),"quote_vol":float(k.get("q",0)),"is_closed":bool(k.get("x",False))}
+        return {
+            "symbol": symbol,
+            "timeframe": "1m",
+            "ts": datetime.fromtimestamp(int(k["t"])/1000, tz=timezone.utc),
+            "open": float(k["o"]),
+            "high": float(k["h"]),
+            "low": float(k["l"]),
+            "close": float(k["c"]),
+            "volume": float(k["v"]),
+            "quote_vol": float(k.get("q",0)),
+            "is_closed": bool(k.get("x",False))
+        }
     except: return None
 
 class WriteBuffer:
-    FLUSH_INTERVAL=2.0; FLUSH_SIZE=500
+    FLUSH_INTERVAL=2.0
+    FLUSH_SIZE=500
     def __init__(self): self._buffer={}; self._last_flush=time.time()
     def add(self,candle):
         key=(candle["symbol"],candle["ts"])
-        self._buffer[key]=(candle["symbol"],candle["timeframe"],candle["ts"],
+        self._buffer[key]=(
+            candle["symbol"],candle["timeframe"],candle["ts"],
             candle["open"],candle["high"],candle["low"],candle["close"],
-            candle["volume"],candle["quote_vol"],candle["is_closed"])
+            candle["volume"],candle["quote_vol"],candle["is_closed"]
+        )
     def should_flush(self):
         return len(self._buffer)>=self.FLUSH_SIZE or (time.time()-self._last_flush)>=self.FLUSH_INTERVAL
     async def flush(self):
         if not self._buffer: return
-        rows=list(self._buffer.values()); self._buffer.clear(); self._last_flush=time.time()
+        rows=list(self._buffer.values())
+        self._buffer.clear()
+        self._last_flush=time.time()
         try:
-            await db.upsert_candles_bulk(rows); metrics.writes_total+=len(rows)
+            await db.upsert_candles_bulk(rows)
+            metrics.writes_total+=len(rows)
         except Exception as e:
-            logger.error(f"DB flush error: {e}"); metrics.record_error()
+            logger.error(f"DB flush error: {e}")
+            metrics.record_error()
 
 write_buffer=WriteBuffer()
 _agg_queue: Optional[asyncio.Queue]=None
 
-def set_agg_queue(q): global _agg_queue; _agg_queue=q
+def set_agg_queue(q):
+    global _agg_queue
+    _agg_queue=q
 
-def build_subscribe_msg(symbols):
+def build_subscribe_msg(symbols: List[str]):
     msgs=[]
     for i in range(0,len(symbols),50):
         chunk=symbols[i:i+50]
@@ -84,7 +101,7 @@ def build_subscribe_msg(symbols):
         msgs.append({"id":f"sub_{i}","reqType":"sub","dataType":args})
     return msgs
 
-async def run_ws_collector(symbols):
+async def run_ws_collector(symbols: List[str]):
     logger.info(f"WS collector starting for {len(symbols)} symbols")
     asyncio.ensure_future(_buffer_flush_loop())
     delay=config.RECONNECT_DELAY_MS/1000.0
@@ -96,26 +113,62 @@ async def run_ws_collector(symbols):
             metrics.reconnects+=1
             logger.warning(f"WS closed ({e}), reconnect in {delay}s")
         except Exception as e:
-            metrics.record_error(); logger.error(f"WS error: {e}")
+            metrics.record_error()
+            logger.error(f"WS error: {e}")
         finally:
             await asyncio.sleep(delay)
 
-async def _connect_and_stream(symbols,ping_interval):
-    async with websockets.connect(config.BINGX_WS_URL,ping_interval=None,
-        ping_timeout=10,close_timeout=5,max_size=2**23,compression=None) as ws:
+async def _connect_and_stream(symbols: List[str], ping_interval: float):
+    async with websockets.connect(
+        config.BINGX_WS_URL,
+        ping_interval=None,
+        ping_timeout=10,
+        close_timeout=5,
+        max_size=2**23,
+        compression=None
+    ) as ws:
         logger.info("WS connected")
         for sub_msg in build_subscribe_msg(symbols):
-            await ws.send(json.dumps(sub_msg)); await asyncio.sleep(0.05)
+            await ws.send(json.dumps(sub_msg))
+            await asyncio.sleep(0.05)
         ping_task=asyncio.ensure_future(_ping_loop(ws,ping_interval))
         try:
             async for raw in ws:
                 await _handle_message(raw)
         finally:
             ping_task.cancel()
-            try: await ping_task
-            except asyncio.CancelledError: pass
+            try:
+                await ping_task
+            except asyncio.CancelledError:
+                pass
 
-async def _ping_loop(ws,interval):
+async def _ping_loop(ws, interval: float):
     try:
         while True:
             await asyncio.sleep(interval)
+            try:
+                await ws.send(json.dumps({"ping":int(time.time()*1000)}))
+            except Exception:
+                break
+    except asyncio.CancelledError:
+        pass
+
+async def _handle_message(raw):
+    metrics.record_msg()
+    msg=decode_message(raw)
+    if msg is None: return
+    if "pong" in msg: return
+    candle=parse_kline(msg)
+    if candle is None: return
+    write_buffer.add(candle)
+    if candle["is_closed"] and _agg_queue is not None:
+        try:
+            _agg_queue.put_nowait(candle)
+        except asyncio.QueueFull:
+            pass
+
+async def _buffer_flush_loop():
+    while True:
+        await asyncio.sleep(write_buffer.FLUSH_INTERVAL)
+        if write_buffer.should_flush():
+            await write_buffer.flush()
