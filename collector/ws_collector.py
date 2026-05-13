@@ -30,6 +30,11 @@ class Metrics:
     def uptime_sec(self): return int(time.time()-self.start_time)
 
 metrics=Metrics()
+_agg_queue: Optional[asyncio.Queue]=None
+
+def set_agg_queue(q):
+    global _agg_queue
+    _agg_queue=q
 
 def decode_message(raw):
     try:
@@ -87,71 +92,6 @@ class WriteBuffer:
             metrics.record_error()
 
 write_buffer=WriteBuffer()
-_agg_queue: Optional[asyncio.Queue]=None
-
-def set_agg_queue(q):
-    global _agg_queue
-    _agg_queue=q
-
-def build_subscribe_msg(symbols: List[str]):
-    msgs=[]
-    for i in range(0,len(symbols),50):
-        chunk=symbols[i:i+50]
-        args=[f"{s.replace('USDT','-USDT')}@kline_1m" for s in chunk]
-        msgs.append({"id":f"sub_{i}","reqType":"sub","dataType":args})
-    return msgs
-
-async def run_ws_collector(symbols: List[str]):
-    logger.info(f"WS collector starting for {len(symbols)} symbols")
-    asyncio.ensure_future(_buffer_flush_loop())
-    delay=config.RECONNECT_DELAY_MS/1000.0
-    ping_interval=config.WS_PING_INTERVAL_MS/1000.0
-    while True:
-        try:
-            await _connect_and_stream(symbols,ping_interval)
-        except (ConnectionClosedError,ConnectionClosedOK) as e:
-            metrics.reconnects+=1
-            logger.warning(f"WS closed ({e}), reconnect in {delay}s")
-        except Exception as e:
-            metrics.record_error()
-            logger.error(f"WS error: {e}")
-        finally:
-            await asyncio.sleep(delay)
-
-async def _connect_and_stream(symbols: List[str], ping_interval: float):
-    async with websockets.connect(
-        config.BINGX_WS_URL,
-        ping_interval=None,
-        ping_timeout=10,
-        close_timeout=5,
-        max_size=2**25,
-        compression=None
-    ) as ws:
-        logger.info("WS connected")
-        for sub_msg in build_subscribe_msg(symbols):
-            await ws.send(json.dumps(sub_msg))
-            await asyncio.sleep(0.1)
-        ping_task=asyncio.ensure_future(_ping_loop(ws,ping_interval))
-        try:
-            async for raw in ws:
-                await _handle_message(raw)
-        finally:
-            ping_task.cancel()
-            try:
-                await ping_task
-            except asyncio.CancelledError:
-                pass
-
-async def _ping_loop(ws, interval: float):
-    try:
-        while True:
-            await asyncio.sleep(interval)
-            try:
-                await ws.send(json.dumps({"ping":int(time.time()*1000)}))
-            except Exception:
-                break
-    except asyncio.CancelledError:
-        pass
 
 async def _handle_message(raw):
     metrics.record_msg()
@@ -162,13 +102,64 @@ async def _handle_message(raw):
     if candle is None: return
     write_buffer.add(candle)
     if candle["is_closed"] and _agg_queue is not None:
+        try: _agg_queue.put_nowait(candle)
+        except asyncio.QueueFull: pass
+
+async def _ping_loop(ws, interval):
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            try: await ws.send(json.dumps({"ping":int(time.time()*1000)}))
+            except: break
+    except asyncio.CancelledError: pass
+
+async def _ws_worker(worker_id: int, symbols: List[str], delay: float, ping_interval: float):
+    """Один WS worker для группы символов (макс 50)."""
+    args=[f"{s.replace('USDT','-USDT')}@kline_1m" for s in symbols]
+    sub_msg=json.dumps({"id":f"sub_{worker_id}","reqType":"sub","dataType":args})
+    while True:
         try:
-            _agg_queue.put_nowait(candle)
-        except asyncio.QueueFull:
-            pass
+            async with websockets.connect(
+                config.BINGX_WS_URL,
+                ping_interval=None,
+                ping_timeout=10,
+                close_timeout=5,
+                max_size=2**24,
+                compression=None
+            ) as ws:
+                logger.info(f"WS worker {worker_id} connected ({len(symbols)} symbols)")
+                await ws.send(sub_msg)
+                ping_task=asyncio.ensure_future(_ping_loop(ws,ping_interval))
+                try:
+                    async for raw in ws:
+                        await _handle_message(raw)
+                finally:
+                    ping_task.cancel()
+                    try: await ping_task
+                    except asyncio.CancelledError: pass
+        except (ConnectionClosedError,ConnectionClosedOK) as e:
+            metrics.reconnects+=1
+            logger.warning(f"WS worker {worker_id} closed ({e}), reconnect in {delay}s")
+        except Exception as e:
+            metrics.record_error()
+            logger.error(f"WS worker {worker_id} error: {e}")
+        finally:
+            await asyncio.sleep(delay)
 
 async def _buffer_flush_loop():
     while True:
         await asyncio.sleep(write_buffer.FLUSH_INTERVAL)
         if write_buffer.should_flush():
             await write_buffer.flush()
+
+async def run_ws_collector(symbols: List[str]):
+    logger.info(f"WS collector starting for {len(symbols)} symbols")
+    asyncio.ensure_future(_buffer_flush_loop())
+    delay=config.RECONNECT_DELAY_MS/1000.0
+    ping_interval=config.WS_PING_INTERVAL_MS/1000.0
+    # Разбиваем на группы по 50 — отдельный WS на каждую
+    chunk_size=50
+    chunks=[symbols[i:i+chunk_size] for i in range(0,len(symbols),chunk_size)]
+    logger.info(f"Starting {len(chunks)} WS workers ({chunk_size} symbols each)")
+    workers=[asyncio.create_task(_ws_worker(i,chunk,delay,ping_interval)) for i,chunk in enumerate(chunks)]
+    await asyncio.gather(*workers)
