@@ -14,11 +14,12 @@ DB_DSN = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 BINGX_WS_URL = "wss://open-api-swap.bingx.com/swap-market"
 BINGX_REST_BASE = "https://open-api.bingx.com"
 
-TOP_SYMBOLS_COUNT = int(os.getenv("TOP_SYMBOLS_COUNT", 200))
+TOP_SYMBOLS_COUNT = int(os.getenv("TOP_SYMBOLS_COUNT", 20))
 RECONNECT_DELAY_MS = int(os.getenv("RECONNECT_DELAY_MS", 1000))
 WS_PING_INTERVAL_MS = int(os.getenv("WS_PING_INTERVAL_MS", 20000))
 HISTORY_DAYS = int(os.getenv("HISTORY_DAYS", 7))
 AGG_TIMEFRAMES = os.getenv("AGG_TIMEFRAMES", "5m,15m,1h,4h").split(",")
+SYMBOLS_PER_WS = int(os.getenv("SYMBOLS_PER_WS", 1))
 
 OI_POLL_INTERVAL_SEC = 3600
 FUNDING_POLL_INTERVAL_SEC = 3600
