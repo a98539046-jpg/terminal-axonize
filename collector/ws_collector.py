@@ -73,6 +73,8 @@ def parse_kline(msg):
         k = msg.get("data", {})
         if not k:
             return None
+        if isinstance(k, list):
+            k = k[0]
         return {
             "symbol": symbol,
             "timeframe": "1m",
@@ -91,7 +93,7 @@ def parse_kline(msg):
 
 class WriteBuffer:
     FLUSH_INTERVAL = 2.0
-    FLUSH_SIZE = 500
+    FLUSH_SIZE = 200
 
     def __init__(self):
         self._buffer = {}
@@ -120,6 +122,7 @@ class WriteBuffer:
         try:
             await db.upsert_candles_bulk(rows)
             metrics.writes_total += len(rows)
+            logger.debug(f"Flushed {len(rows)} candles")
         except Exception as e:
             logger.error(f"DB flush error: {e}")
             metrics.record_error()
@@ -135,10 +138,13 @@ async def _handle_message(raw):
         return
     if "pong" in msg:
         return
+    if msg.get("code") == 0:
+        return
     candle = parse_kline(msg)
     if candle is None:
         return
     write_buffer.add(candle)
+    logger.debug(f"Candle: {candle['symbol']} close={candle['close']}")
     if candle["is_closed"] and _agg_queue is not None:
         try:
             _agg_queue.put_nowait(candle)
@@ -158,7 +164,13 @@ async def _ping_loop(ws, interval):
         pass
 
 
-async def _ws_worker(worker_id, symbols, delay, ping_interval):
+async def _ws_worker(worker_id, symbol, delay, ping_interval):
+    sym_fmt = symbol.replace("USDT", "-USDT")
+    sub_msg = json.dumps({
+        "id": f"sub_{worker_id}",
+        "reqType": "sub",
+        "dataType": f"{sym_fmt}@kline_1m"
+    })
     while True:
         try:
             async with websockets.connect(
@@ -169,15 +181,8 @@ async def _ws_worker(worker_id, symbols, delay, ping_interval):
                 max_size=2**24,
                 compression=None
             ) as ws:
-                logger.info(f"WS worker {worker_id} connected ({len(symbols)} symbols)")
-                for sym in symbols:
-                    sub = json.dumps({
-                        "id": f"{worker_id}_{sym}",
-                        "reqType": "sub",
-                        "dataType": f"{sym.replace('USDT', '-USDT')}@kline_1m"
-                    })
-                    await ws.send(sub)
-                    await asyncio.sleep(0.05)
+                await ws.send(sub_msg)
+                logger.info(f"WS worker {worker_id} subscribed: {symbol}")
                 ping_task = asyncio.ensure_future(_ping_loop(ws, ping_interval))
                 try:
                     async for raw in ws:
@@ -190,10 +195,10 @@ async def _ws_worker(worker_id, symbols, delay, ping_interval):
                         pass
         except (ConnectionClosedError, ConnectionClosedOK) as e:
             metrics.reconnects += 1
-            logger.warning(f"WS worker {worker_id} closed, reconnect in {delay}s")
+            logger.warning(f"WS {symbol} closed, reconnect in {delay}s")
         except Exception as e:
             metrics.record_error()
-            logger.error(f"WS worker {worker_id} error: {e}")
+            logger.error(f"WS {symbol} error: {e}")
         await asyncio.sleep(delay)
 
 
@@ -205,15 +210,9 @@ async def _buffer_flush_loop():
 
 
 async def run_ws_collector(symbols: List[str]):
-    logger.info(f"WS collector starting for {len(symbols)} symbols")
+    logger.info(f"WS collector starting for {len(symbols)} symbols (1 WS per symbol)")
     asyncio.ensure_future(_buffer_flush_loop())
     delay = config.RECONNECT_DELAY_MS / 1000.0
     ping_interval = config.WS_PING_INTERVAL_MS / 1000.0
-    chunk_size = 50
-    chunks = [symbols[i:i+chunk_size] for i in range(0, len(symbols), chunk_size)]
-    logger.info(f"Starting {len(chunks)} WS workers")
     workers = [
-        asyncio.create_task(_ws_worker(i, chunk, delay, ping_interval))
-        for i, chunk in enumerate(chunks)
-    ]
-    await asyncio.gather(*workers)
+        asyncio.crea
