@@ -43,7 +43,7 @@ class Metrics:
 
 
 metrics = Metrics()
-_agg_queue: Optional[asyncio.Queue] = None
+_agg_queue = None
 
 
 def set_agg_queue(q):
@@ -75,19 +75,22 @@ def parse_kline(msg):
             return None
         if isinstance(k, list):
             k = k[0]
+        close_time = int(k["T"])
+        open_time = close_time - 60000
         return {
             "symbol": symbol,
             "timeframe": "1m",
-            "ts": datetime.fromtimestamp(int(k["t"]) / 1000, tz=timezone.utc),
+            "ts": datetime.fromtimestamp(open_time / 1000, tz=timezone.utc),
             "open": float(k["o"]),
             "high": float(k["h"]),
             "low": float(k["l"]),
             "close": float(k["c"]),
             "volume": float(k["v"]),
-            "quote_vol": float(k.get("q", 0)),
-            "is_closed": bool(k.get("x", False))
+            "quote_vol": 0.0,
+            "is_closed": False
         }
-    except Exception:
+    except Exception as e:
+        logger.debug(f"parse_kline error: {e} msg={msg}")
         return None
 
 
@@ -122,7 +125,7 @@ class WriteBuffer:
         try:
             await db.upsert_candles_bulk(rows)
             metrics.writes_total += len(rows)
-            logger.debug(f"Flushed {len(rows)} candles")
+            logger.info(f"Flushed {len(rows)} candles to DB")
         except Exception as e:
             logger.error(f"DB flush error: {e}")
             metrics.record_error()
@@ -144,7 +147,6 @@ async def _handle_message(raw):
     if candle is None:
         return
     write_buffer.add(candle)
-    logger.debug(f"Candle: {candle['symbol']} close={candle['close']}")
     if candle["is_closed"] and _agg_queue is not None:
         try:
             _agg_queue.put_nowait(candle)
@@ -193,7 +195,7 @@ async def _ws_worker(worker_id, symbol, delay, ping_interval):
                         await ping_task
                     except asyncio.CancelledError:
                         pass
-        except (ConnectionClosedError, ConnectionClosedOK) as e:
+        except (ConnectionClosedError, ConnectionClosedOK):
             metrics.reconnects += 1
             logger.warning(f"WS {symbol} closed, reconnect in {delay}s")
         except Exception as e:
@@ -209,10 +211,14 @@ async def _buffer_flush_loop():
             await write_buffer.flush()
 
 
-async def run_ws_collector(symbols: List[str]):
-    logger.info(f"WS collector starting for {len(symbols)} symbols (1 WS per symbol)")
+async def run_ws_collector(symbols):
+    logger.info(f"WS collector starting for {len(symbols)} symbols")
     asyncio.ensure_future(_buffer_flush_loop())
     delay = config.RECONNECT_DELAY_MS / 1000.0
     ping_interval = config.WS_PING_INTERVAL_MS / 1000.0
     workers = [
-        asyncio.crea
+        asyncio.create_task(_ws_worker(i, sym, delay, ping_interval))
+        for i, sym in enumerate(symbols)
+    ]
+    logger.info(f"Started {len(workers)} WS workers")
+    await asyncio.gather(*workers)
