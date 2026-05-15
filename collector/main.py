@@ -2,11 +2,10 @@ import asyncio
 import logging
 import signal
 import sys
-import time
 from logging.handlers import RotatingFileHandler
 import config
 import database as db
-from ws_collector import run_ws_collector, set_agg_queue, metrics
+from ws_collector import run_ws_collector, set_agg_queue, metrics, write_buffer
 from aggregator import run_aggregator
 from rest_client import load_symbols, load_historical_candles, run_rest_poller
 
@@ -39,10 +38,18 @@ async def run_monitor(symbols_count):
                 f"msgs/s={metrics.msgs_per_sec:.1f} | "
                 f"writes={metrics.writes_total} | "
                 f"errors={metrics.errors_total} | "
-                f"reconnects={metrics.reconnects}"
+                f"reconnects={metrics.reconnects} | "
+                f"buf={len(write_buffer._buffer)}"
             )
         except Exception as e:
             logger.error(f"Monitor error: {e}")
+
+async def run_flush_loop():
+    logger.info("Flush loop started")
+    while True:
+        await asyncio.sleep(2)
+        if write_buffer._buffer:
+            await write_buffer.flush()
 
 async def main():
     setup_logging()
@@ -78,6 +85,7 @@ async def main():
         asyncio.create_task(run_aggregator(agg_queue), name="aggregator"),
         asyncio.create_task(run_rest_poller(symbols), name="rest_poller"),
         asyncio.create_task(run_monitor(len(symbols)), name="monitor"),
+        asyncio.create_task(run_flush_loop(), name="flush_loop"),
         asyncio.create_task(load_historical_candles(symbols), name="historical"),
     ]
 
