@@ -1429,6 +1429,7 @@ function axzHandleEvent(msg){
   }
   if(msg.event==='stats.update'){if(msg.win_rate!==undefined)g('axzWinRate').textContent=fmtN(+msg.win_rate,1)+'%';if(msg.total_trades!==undefined)g('axzTradesCount').textContent=msg.total_trades;if(msg.sharpe!==undefined)g('axzSharpe').textContent=fmtN(+msg.sharpe,2);if(msg.max_dd!==undefined)g('axzDD').textContent=fmtN(+msg.max_dd,1)+'%';}
   if(msg.event==='system.status'){const el=g('axzStatus');el.textContent=msg.status==='online'?'● Система активна':msg.status==='pause'?'⏸ Пауза':'○ Офлайн';el.style.color=msg.status==='online'?'var(--green)':msg.status==='pause'?'var(--yellow)':'var(--red)';}
+  if(msg.event==='positions.update'){POS.length=0;(msg.positions||[]).forEach(p=>POS.push(p));drawPositions();const at=document.querySelector('.bp-tab.active');if(at)setBP(at,'pos');}
 }
 
 function axzRenderTrades(){
